@@ -1,15 +1,3 @@
-[project]
-name = "school-quiz-league"
-version = "1.0.0"
-description = "Live class-vs-class school quiz league"
-requires-python = ">=3.10"
-dependencies = [
-  "fastapi>=0.110",
-  "uvicorn[standard]>=0.29",
-  "python-socketio>=5.11",
-  "qrcode>=7.4",
-]
-
 [tool.poetry]
 name = "school-quiz-league"
 version = "1.0.0"

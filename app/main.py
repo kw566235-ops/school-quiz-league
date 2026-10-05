@@ -923,14 +923,18 @@ async def lifespan(_app):
 sio_asgi = socketio.ASGIApp(sio)
 
 
-class QuizApp(FastAPI):
+class SocketIOMiddleware:
+    def __init__(self, app):
+        self.app = app
+
     async def __call__(self, scope, receive, send):
         if scope["type"] in ("http", "websocket") and scope.get("path", "").startswith("/socket.io"):
             return await sio_asgi(scope, receive, send)
-        return await super().__call__(scope, receive, send)
+        return await self.app(scope, receive, send)
 
 
-app = QuizApp(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(SocketIOMiddleware)
 
 
 @app.get("/healthz")
