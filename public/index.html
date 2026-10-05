@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دوري المسابقات المدرسي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .wrap{max-width:1100px;margin:0 auto;padding:40px 20px 60px}
+  header{display:flex;justify-content:space-between;align-items:center}
+  .hero{text-align:center;padding:70px 0 50px}
+  .hero h1{font-size:clamp(2.2rem,5vw,4rem);font-weight:900}
+  .hero p{font-size:1.2rem;max-width:640px;margin:16px auto 0}
+  .portals{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+  .portal{display:flex;flex-direction:column;gap:14px;padding:28px;transition:.25s;position:relative;overflow:hidden}
+  .portal:hover{transform:translateY(-6px);border-color:rgba(124,92,255,.6)}
+  .portal .pi{width:58px;height:58px;border-radius:16px;display:grid;place-items:center}
+  .portal .pi .ico{width:30px;height:30px}
+  .portal h3{font-size:1.4rem;font-weight:800}
+  .portal .go{margin-top:auto;font-weight:800;color:#c4b5fd}
+  .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:40px}
+  .feat{display:flex;gap:12px;align-items:flex-start;padding:16px}
+  .feat .ico{width:26px;height:26px;color:var(--pri2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div id="logo"></div><span class="badge">من الصف التاسع إلى الثاني عشر</span></header>
+  <section class="hero fade-in">
+    <span class="badge ok" style="margin-bottom:18px">مسابقة مباشرة بين الفصول</span>
+    <h1>دوري <span class="grad-text">المسابقات</span> المدرسي</h1>
+    <p class="muted">تنافسوا فصلاً ضد فصل، جاوبوا أسرع، اجمعوا النقاط وتأهلوا حتى النهائي لتتوّجوا أبطالاً للمدرسة.</p>
+  </section>
+  <section class="portals" id="portals"></section>
+  <section class="features" id="features"></section>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/common.js"></script>
+<script>
+  const { icons, logo, $ } = App;
+  $('#logo').innerHTML = logo;
+  const portals = [
+    ['/play', 'دخول الطالب', 'انضم من جهازك باسمك وفصلك، وجاوب على الأسئلة لحظة بلحظة.', icons.users, 'linear-gradient(135deg,#3b82f6,#22d3ee)'],
+    ['/display', 'شاشة العرض', 'للبروجكتر: الأسئلة، المراكز، الإحصائيات وشجرة الدوري مباشرة.', icons.monitor, 'linear-gradient(135deg,#f97316,#fbbf24)'],
+    ['/admin', 'لوحة الأدمن', 'إنشاء الفصول والأسئلة، إدارة الدوري، وبدء المسابقة.', icons.shield, 'linear-gradient(135deg,#7c5cff,#c026d3)'],
+  ];
+  $('#portals').innerHTML = portals.map(([href, t, d, ic, bg]) => `
+    <a class="card portal" href="${href}"><div class="pi" style="background:${bg}">${ic}</div><h3>${t}</h3><p class="muted" style="margin:0">${d}</p><span class="go">ادخل ←</span></a>`).join('');
+  const feats = [
+    [icons.bolt, 'سرعة الإجابة', 'كل ما جاوبت أسرع زادت نقاطك'],
+    [icons.sitemap, 'نظام خروج المغلوب', 'كل فصلين يتنافسون والفائز يتأهل'],
+    [icons.chart, 'إحصائيات مباشرة', 'نسب الإجابات وترتيب الطلاب والفصول'],
+    [icons.flame, 'سلسلة الإجابات', 'نقاط إضافية للإجابات الصحيحة المتتالية'],
+  ];
+  $('#features').innerHTML = feats.map(([ic, t, d]) => `<div class="card feat">${ic}<div><b>${t}</b><div class="muted" style="font-size:.9rem">${d}</div></div></div>`).join('');
+</script>
+</body>
+</html>

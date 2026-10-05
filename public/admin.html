@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>لوحة الأدمن — دوري المسابقات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+  aside{border-left:1px solid var(--line);background:rgba(6,10,28,.7);backdrop-filter:blur(12px);padding:22px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+  aside .logo{margin:0 8px 22px}
+  .nav{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:700;color:var(--muted);border:1px solid transparent;transition:.15s;background:none;width:100%;text-align:right}
+  .nav:hover{background:rgba(255,255,255,.05);color:var(--txt)}
+  .nav.on{background:linear-gradient(135deg,rgba(124,92,255,.3),rgba(34,211,238,.12));border-color:rgba(124,92,255,.4);color:#fff}
+  .nav .ico{width:20px;height:20px}
+  .nav .badge.live{font-size:0;padding:4px;gap:0}
+  .content{padding:26px 30px 60px;min-width:0}
+  .phead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+  .phead h1{font-size:1.7rem;font-weight:900}
+  .cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(340px,1fr);gap:20px;align-items:start}
+  .cols>*,.grid>*{min-width:0}
+  .sec-title{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.1rem;margin-bottom:14px}
+  .sec-title .ico{color:var(--pri2)}
+  .grade-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+  .ccard{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line);margin-bottom:10px}
+  .ccard h3{font-size:1.5rem;font-weight:900}
+  .qcard{border:1px solid var(--line);border-radius:16px;padding:18px;background:rgba(0,0,0,.18);margin-bottom:14px}
+  .qcard .qn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--pri),var(--pri2));font-weight:900;flex:none}
+  .ans-ok{border-color:rgba(34,197,94,.55)!important;background:rgba(34,197,94,.08)!important}
+  .ans-bad{border-color:rgba(239,68,68,.4)!important;background:rgba(239,68,68,.06)!important}
+  .wrong-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .checks{display:flex;flex-wrap:wrap;gap:8px}
+  .checks label{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--line);cursor:pointer;font-weight:700}
+  .checks input{accent-color:var(--pri)}
+  .lpanel{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .lq{border-radius:16px;padding:14px;border:1px solid color-mix(in srgb,var(--team) 50%,transparent);background:color-mix(in srgb,var(--team) 10%,transparent)}
+  .lq .opt{min-height:52px;padding:10px 12px;font-size:.95rem;cursor:default}
+  .lq .opt .shape{width:30px;height:30px}.lq .opt .shape svg{width:18px;height:18px}
+  .lq .options{gap:8px}
+  .login{min-height:100vh;display:grid;place-items:center;padding:20px}
+  .vbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .vbtns .btn.on{background:linear-gradient(135deg,var(--pri),#4f46e5);border-color:transparent}
+  .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;min-width:80px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e)}
+  @media (max-width:1000px){.layout{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap}aside .logo{width:100%;margin-bottom:8px}.nav{width:auto}.cols,.lpanel{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

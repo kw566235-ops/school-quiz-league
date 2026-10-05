@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>شاشة العرض — دوري المسابقات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  html{font-size:clamp(14px,1.05vw,30px)}
+  body{height:100vh;overflow:hidden}
+  .screen{height:100vh;display:flex;flex-direction:column;padding:1.4rem 2rem 1.6rem;gap:1.2rem}
+  .dhead{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .dhead .mid{display:flex;align-items:center;gap:.8rem;font-weight:800;font-size:1.2rem}
+  .joinbox{display:flex;align-items:center;gap:.8rem;background:rgba(255,255,255,.06);border:1px solid var(--line);padding:.4rem .5rem .4rem 1rem;border-radius:14px}
+  .joinbox img{width:3.4rem;height:3.4rem;border-radius:8px;background:#fff}
+  .joinbox b{direction:ltr;font-size:1rem}
+  .stage{flex:1;min-height:0;display:flex;flex-direction:column;gap:1.2rem}
+  .two{display:grid;grid-template-columns:1fr auto 1fr;gap:1.4rem;flex:1;min-height:0}
+  .tpanel{display:flex;flex-direction:column;gap:1rem;padding:1.2rem;border-radius:22px;border:1px solid color-mix(in srgb,var(--team) 50%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--team) 16%,transparent),rgba(255,255,255,.02))}
+  .tpanel .th{display:flex;justify-content:space-between;align-items:center}
+  .tpanel .th h2{font-size:2.2rem;font-weight:900;color:color-mix(in srgb,var(--team) 70%,#fff)}
+  .tpanel .q{font-size:1.9rem;font-weight:900;line-height:1.55;text-align:center;padding:1rem;flex:1;display:grid;place-items:center}
+  .tpanel .opt{min-height:4.6rem;font-size:1.3rem}
+  .center-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
+  .ring{width:9rem;height:9rem}
+  .ring b{font-size:3.4rem}
+  .counter{font-size:1.1rem;font-weight:800;padding:.4rem 1rem;border-radius:999px;background:rgba(0,0,0,.3)}
+  .lb{display:flex;flex-direction:column;gap:.6rem}
+  .lb-row{display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-weight:800;font-size:1.15rem;animation:fin .4s ease-out both}
+  .lb-row .nm{flex:1}
+  .lb-row .cl{font-size:.85rem;padding:.15rem .6rem;border-radius:8px;background:color-mix(in srgb,var(--team,#64748b) 40%,transparent)}
+  .lb-row .sc{font-variant-numeric:tabular-nums;font-size:1.3rem}
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:1.2rem;margin-top:1rem}
+  .pod{display:flex;flex-direction:column;align-items:center;gap:.6rem;width:14rem}
+  .pod .blk{width:100%;border-radius:18px 18px 0 0;display:grid;place-items:center;font-size:3rem;font-weight:900}
+  .pod.p1 .blk{height:15rem;background:linear-gradient(180deg,#fbbf24,#92400e)}
+  .pod.p2 .blk{height:11rem;background:linear-gradient(180deg,#cbd5e1,#475569)}
+  .pod.p3 .blk{height:8rem;background:linear-gradient(180deg,#fb923c,#7c2d12)}
+  .pod .n{font-size:1.4rem;font-weight:900;text-align:center}
+  .winner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;flex:1;text-align:center}
+  .winner .tro{width:10rem;height:10rem;color:var(--gold);filter:drop-shadow(0 0 40px rgba(251,191,36,.7));animation:pop .6s ease-out}
+  .winner h1{font-size:6rem;font-weight:900}
+  .bigvs{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2rem}
+  .bigvs .vs .team h2{font-size:5rem}
+  .fs-btn{position:fixed;left:14px;bottom:14px;opacity:.25;z-index:20}
+  .fs-btn:hover{opacity:1}
+  .grid2{display:grid;grid-template-columns:2.2fr 1fr;gap:1.4rem;flex:1;min-height:0}
+  .grid2>.card{overflow:auto}
+  .sectitle{display:flex;align-items:center;gap:.6rem;font-size:1.3rem;font-weight:900;margin-bottom:1rem}
+  .table td,.table th{font-size:1.05rem}
+</style>
+</head>
+<body>
+<div class="screen"><div class="dhead" id="head"></div><div class="stage" id="stage"><div class="center-col" style="flex:1"><div class="spinner"></div></div></div></div>
+<button class="btn sm fs-btn" id="fs" title="ملء الشاشة"></button>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/display.js"></script>
+</body>
+</html>
