@@ -1,0 +1,29 @@
+[project]
+name = "school-quiz-league"
+version = "1.0.0"
+description = "Live class-vs-class school quiz league"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "python-socketio>=5.11",
+  "qrcode>=7.4",
+]
+
+[tool.poetry]
+name = "school-quiz-league"
+version = "1.0.0"
+description = "Live class-vs-class school quiz league"
+authors = ["Khalid"]
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = ">=0.110"
+uvicorn = { version = ">=0.29", extras = ["standard"] }
+python-socketio = ">=5.11"
+qrcode = ">=7.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

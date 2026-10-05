@@ -297,9 +297,11 @@
   // ------------------------------------------------------------ settings
   function viewSettings() {
     return head('الإعدادات') + `<div class="cols">
-      <div class="card"><div class="sec-title">${icons.users} روابط الدخول على الشبكة المحلية</div>
+      <div class="card"><div class="sec-title">${icons.users} روابط الدخول</div>
         ${(data.urls.length ? data.urls : [location.origin]).map((u) => `<div class="ccard"><div><b class="ltr" style="display:block">${esc(u)}/play</b><span class="muted" style="font-size:.85rem">صفحة الطالب</span></div><img src="/api/qr?u=${encodeURIComponent(u + '/play')}" style="width:80px;height:80px;border-radius:8px;background:#fff"></div>`).join('')}
-        <p class="muted" style="font-size:.9rem">شاشة العرض: <b class="ltr">/display</b> — لوحة الأدمن: <b class="ltr">/admin</b><br>لتغيير كلمة مرور الأدمن شغّل الخادم مع المتغير <code>ADMIN_PASSWORD</code>.</p></div>
+        <p class="muted" style="font-size:.9rem">شاشة العرض: <b class="ltr">/display</b> — لوحة الأدمن: <b class="ltr">/admin</b></p>
+        <div class="sec-title" style="margin-top:18px">${icons.gear} تغيير كلمة مرور الأدمن</div>
+        <div class="row" style="display:flex;gap:10px"><input class="input" id="newpw" type="password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" autocomplete="new-password" style="flex:1"><button class="btn primary" data-setpw>حفظ</button></div></div>
       <div class="card"><div class="sec-title">${icons.gear} البيانات</div><div class="grid" style="gap:10px">
         <button class="btn" data-demo>تحميل بيانات تجريبية (8 فصول + أسئلة + دوري)</button>
         <button class="btn warn" data-resetstats>تصفير الإحصائيات وترتيب الطلاب</button>
@@ -385,6 +387,11 @@
       a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
       a.download = 'ترتيب-الطلاب.csv';
       a.click();
+      return;
+    }
+    if ('setpw' in d) {
+      const pw = document.getElementById('newpw').value;
+      act('admin:password', { password: pw }, 'تم تغيير كلمة المرور').then((r) => { if (r.ok) localStorage.removeItem(TOKEN); });
       return;
     }
     if ('demo' in d) return act('data:demo', {}, 'تم تحميل البيانات التجريبية');
