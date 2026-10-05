@@ -24,7 +24,6 @@ PORT = int(os.environ.get("PORT", "8000"))
 DEFAULT_DATA = Path("/data/db.json") if Path("/data").is_dir() else ROOT / "data" / "db.json"
 DATA_FILE = Path(os.environ.get("DATA_FILE", str(DEFAULT_DATA)))
 COUNTDOWN_MS = 3000
-DEMO = json.loads((Path(__file__).parent / "demo.json").read_text(encoding="utf-8"))
 
 
 def initial_password():
@@ -760,18 +759,6 @@ def h_view(d):
         display_view = d["view"]
 
 
-def h_demo(d):
-    if live["phase"] != "idle":
-        raise Err("أغلق المباراة الحالية أولاً")
-    for c in DEMO:
-        if any(x["name"] == f"{c['grade']}/{c['section']}" for x in db["classes"]):
-            continue
-        nc = create_class(c)
-        nc["questions"] = [normalize_question(q, i) for i, q in enumerate(c["questions"])]
-    if not db["tournaments"]:
-        create_tournament({"name": "دوري المسابقات الثقافية", "classIds": [c["id"] for c in db["classes"]], "questionsPerMatch": 5, "order": "grade"})
-
-
 def h_stats_reset(d):
     db.update(players={}, questionStats={}, history=[])
 
@@ -797,7 +784,7 @@ ADMIN_HANDLERS = {
     "class:create": lambda d: create_class(d) and None, "class:delete": h_class_delete, "class:saveQuestions": h_save_questions, "class:copyQuestions": h_copy_questions,
     "tournament:create": lambda d: {"id": create_tournament(d)["id"]}, "tournament:delete": h_tournament_delete, "tournament:activate": h_activate,
     "match:open": open_match, "match:start": h_start, "match:reveal": h_reveal, "match:next": h_next, "match:cancel": h_cancel, "match:close": h_close,
-    "match:setWinner": set_winner, "match:reset": reset_match, "display:view": h_view, "data:demo": h_demo, "stats:reset": h_stats_reset,
+    "match:setWinner": set_winner, "match:reset": reset_match, "display:view": h_view, "stats:reset": h_stats_reset,
     "data:reset": h_data_reset, "admin:password": h_password,
 }
 
