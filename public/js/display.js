@@ -71,7 +71,7 @@
       <div style="text-align:center"><span class="badge ok" style="font-size:1.1rem;padding:.4rem 1.2rem">${esc(st.match.roundName)}</span>
       <h1 style="font-size:2.6rem;margin-top:.6rem">انضموا الآن! <span class="muted" style="font-size:1.6rem">المسابقة ستبدأ قريباً</span></h1></div>
       <div class="vs">${team(a, 'teamA')}<div class="vs-badge">VS</div>${team(b, 'teamB')}</div>
-      ${url ? `<div style="display:flex;align-items:center;justify-content:center;gap:1.4rem"><img src="/api/qr?u=${encodeURIComponent(url)}" style="width:9rem;height:9rem;border-radius:14px;background:#fff;padding:.4rem"><div><div class="muted">امسح الرمز أو افتح الرابط</div><b class="ltr" style="font-size:2rem">${esc(url.replace(/^https?:\/\//, ''))}</b></div></div>` : ''}
+      ${url ? `<div style="display:flex;align-items:center;justify-content:center;gap:1.4rem"><img src="/api/qr?u=${encodeURIComponent(url)}" style="width:9rem;height:9rem;border-radius:14px;background:#fff;padding:.4rem"><div><div class="muted">امسح الرمز أو افتح الرابط</div><b class="ltr" style="font-size:2rem;display:block">${esc(url.replace(/^https?:\/\//, ''))}</b></div></div>` : ''}
     </div>`;
   }
 

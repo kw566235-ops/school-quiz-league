@@ -59,7 +59,7 @@
   function renderNav() {
     const nav = $('#nav');
     if (!nav) return;
-    nav.innerHTML = `${logo}${TABS.map(([id, t, ic]) => `<button class="nav ${tab === id ? 'on' : ''}" data-tab="${id}">${ic}<span style="white-space:nowrap">${t}</span>${id === 'live' && st && st.phase !== 'idle' ? '<span class="badge live" style="margin-inline-start:auto;font-size:.65rem;padding:2px 8px">مباشر</span>' : ''}</button>`).join('')}
+    nav.innerHTML = `${logo}${TABS.map(([id, t, ic]) => `<button class="nav ${tab === id ? 'on' : ''}" data-tab="${id}">${ic}<span style="white-space:nowrap">${t}</span>${id === 'live' && st && st.phase !== 'idle' ? '<span class="live-dot" title="مباشر"></span>' : ''}</button>`).join('')}
       <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
         <span class="badge ok" style="justify-content:center">${icons.users} ${data?.stats.totals.online ?? 0} طالب متصل</span>
         <a class="btn sm" href="/display" target="_blank">${icons.monitor} فتح شاشة العرض</a></div>`;
@@ -100,7 +100,7 @@
             <a class="btn sm ghost" style="width:100%;margin-top:10px" href="/display" target="_blank">${icons.expand} فتح شاشة العرض في نافذة جديدة</a></div>
           <div class="card"><div class="sec-title">${icons.users} رابط دخول الطلاب</div>
             <div class="row" style="flex-wrap:nowrap">${url ? `<img src="/api/qr?u=${encodeURIComponent(url)}" style="width:96px;height:96px;border-radius:10px;background:#fff">` : ''}
-            <div><b class="ltr" style="word-break:break-all">${esc(url)}</b><span class="muted" style="font-size:.85rem">يجب أن تكون الأجهزة على نفس الشبكة</span></div></div></div>
+            <div><b class="ltr" style="display:block;word-break:break-all">${esc(url)}</b><span class="muted" style="font-size:.85rem">يجب أن تكون الأجهزة على نفس الشبكة</span></div></div></div>
         </div>
       </div>
       <div class="card" style="margin-top:20px" data-tid="${t?.id || ''}"><div class="sec-title">${icons.sitemap} جدول المباريات — اضغط "فتح المباراة" لبدء أي مواجهة</div>${renderBracket(t, { admin: true })}</div>`;
@@ -298,7 +298,7 @@
   function viewSettings() {
     return head('الإعدادات') + `<div class="cols">
       <div class="card"><div class="sec-title">${icons.users} روابط الدخول على الشبكة المحلية</div>
-        ${(data.urls.length ? data.urls : [location.origin]).map((u) => `<div class="ccard"><div><b class="ltr">${esc(u)}/play</b><span class="muted" style="font-size:.85rem">صفحة الطالب</span></div><img src="/api/qr?u=${encodeURIComponent(u + '/play')}" style="width:80px;height:80px;border-radius:8px;background:#fff"></div>`).join('')}
+        ${(data.urls.length ? data.urls : [location.origin]).map((u) => `<div class="ccard"><div><b class="ltr" style="display:block">${esc(u)}/play</b><span class="muted" style="font-size:.85rem">صفحة الطالب</span></div><img src="/api/qr?u=${encodeURIComponent(u + '/play')}" style="width:80px;height:80px;border-radius:8px;background:#fff"></div>`).join('')}
         <p class="muted" style="font-size:.9rem">شاشة العرض: <b class="ltr">/display</b> — لوحة الأدمن: <b class="ltr">/admin</b><br>لتغيير كلمة مرور الأدمن شغّل الخادم مع المتغير <code>ADMIN_PASSWORD</code>.</p></div>
       <div class="card"><div class="sec-title">${icons.gear} البيانات</div><div class="grid" style="gap:10px">
         <button class="btn" data-demo>تحميل بيانات تجريبية (8 فصول + أسئلة + دوري)</button>
