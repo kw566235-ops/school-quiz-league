@@ -298,10 +298,10 @@
   function viewSettings() {
     return head('الإعدادات') + `<div class="cols">
       <div class="card"><div class="sec-title">${icons.users} روابط الدخول</div>
-        ${(data.urls.length ? data.urls : [location.origin]).map((u) => `<div class="ccard"><div><b class="ltr" style="display:block">${esc(u)}/play</b><span class="muted" style="font-size:.85rem">صفحة الطالب</span></div><img src="/api/qr?u=${encodeURIComponent(u + '/play')}" style="width:80px;height:80px;border-radius:8px;background:#fff"></div>`).join('')}
+        ${(/localhost|127\.0\.0\.1/.test(location.hostname) && data.urls.length ? data.urls : [location.origin]).map((u) => `<div class="ccard"><div><b class="ltr" style="display:block">${esc(u)}/play</b><span class="muted" style="font-size:.85rem">صفحة الطالب</span></div><img src="/api/qr?u=${encodeURIComponent(u + '/play')}" style="width:80px;height:80px;border-radius:8px;background:#fff"></div>`).join('')}
         <p class="muted" style="font-size:.9rem">شاشة العرض: <b class="ltr">/display</b> — لوحة الأدمن: <b class="ltr">/admin</b></p>
         <div class="sec-title" style="margin-top:18px">${icons.gear} تغيير كلمة مرور الأدمن</div>
-        <div class="row" style="display:flex;gap:10px"><input class="input" id="newpw" type="password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" autocomplete="new-password" style="flex:1"><button class="btn primary" data-setpw>حفظ</button></div></div>
+        <div class="row" style="display:flex;gap:10px"><input class="input" id="newpw" type="password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" autocomplete="new-password" style="flex:1"><button class="btn pri" data-setpw>حفظ</button></div></div>
       <div class="card"><div class="sec-title">${icons.gear} البيانات</div><div class="grid" style="gap:10px">
         <button class="btn warn" data-resetstats>تصفير الإحصائيات وترتيب الطلاب</button>
         <button class="btn bad" data-resetall>${icons.trash} حذف كل البيانات</button>
