@@ -48,11 +48,32 @@
   .grid2>.card{overflow:auto}
   .sectitle{display:flex;align-items:center;gap:.6rem;font-size:1.3rem;font-weight:900;margin-bottom:1rem}
   .table td,.table th{font-size:1.05rem}
+  [hidden]{display:none!important}
+  .screen{opacity:0;transition:opacity .45s ease}
+  .screen.is-revealed{opacity:1}
+  .opening{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 35%,rgba(124,92,255,.2),transparent 48%),#080b1c;opacity:1;transition:opacity .4s ease,visibility .4s ease}
+  .opening.is-closing{opacity:0;visibility:hidden;pointer-events:none}
+  .opening-card{width:min(760px,100%);text-align:center;padding:clamp(28px,6vw,64px);border:1px solid rgba(255,255,255,.12);border-radius:28px;background:rgba(11,16,39,.72);box-shadow:0 24px 90px rgba(0,0,0,.32)}
+  .opening-logo{display:grid;place-items:center;width:88px;height:88px;margin:0 auto 22px;border-radius:25px;color:#fff;background:linear-gradient(135deg,#7c5cff,#22d3ee)}
+  .opening-logo .ico{width:44px;height:44px}
+  .opening-card h1{font-size:clamp(2.3rem,7vw,5rem);font-weight:900;line-height:1.2;margin-bottom:30px}
+  .opening-start{min-height:44px;padding:9px 24px;font-size:1rem;font-weight:700;background:rgba(124,92,255,.82);border-color:rgba(196,181,253,.24);box-shadow:none;transition:background .18s ease}
+  .opening-start:hover:not(:disabled){background:#7c5cff}
+  .opening-start:disabled{opacity:.7;cursor:wait}
+  @media(prefers-reduced-motion:reduce){.screen,.opening,.opening-start{transition:none}}
 </style>
 </head>
 <body>
-<div class="screen"><div class="dhead" id="head"></div><div class="stage" id="stage"><div class="center-col" style="flex:1"><div class="spinner"></div></div></div></div>
-<button class="btn sm fs-btn" id="fs" title="ملء الشاشة"></button>
+<div class="screen" id="siteContent" hidden><div class="dhead" id="head"></div><div class="stage" id="stage"><div class="center-col" style="flex:1"><div class="spinner"></div></div></div>
+  <button class="btn sm fs-btn" id="fs" title="ملء الشاشة"></button>
+</div>
+<div class="opening" id="opening">
+  <div class="opening-card">
+    <div class="opening-logo" id="openingLogo"></div>
+    <h1>دوري <span class="grad-text">المسابقات</span> المدرسي</h1>
+    <button class="btn pri opening-start" id="openingStart">بدء الافتتاح</button>
+  </div>
+</div>
 <script src="/js/socket.io.min.js"></script>
 <script src="/js/common.js"></script>
 <script src="/js/display.js"></script>
