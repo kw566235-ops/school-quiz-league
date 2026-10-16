@@ -170,8 +170,21 @@ def mk_match(a, b, bye=False):
 
 
 def create_tournament(d):
+    if live["phase"] != "idle" or any(game["phase"] != "idle" for game in class_games.values()):
+        raise Err("أغلق المسابقات الجارية قبل إنشاء مسابقة جديدة")
     ids = d.get("classIds") if isinstance(d.get("classIds"), list) else []
     teams = [c for c in (get_class(i) for i in ids) if c]
+    if d.get("type") == "independent":
+        teams = sort_classes(teams)
+        if not teams:
+            raise Err("اختر فصلاً واحداً على الأقل")
+        if any(not c["questions"] for c in teams):
+            raise Err("أضف الأسئلة لكل فصل مشارك أولاً")
+        t = {"id": uid(), "name": clean(d.get("name"), 80) or "مسابقات الفصول", "type": "independent",
+             "classIds": [c["id"] for c in teams], "results": {}, "createdAt": now_ms()}
+        db["tournaments"].append(t)
+        db["activeTournamentId"] = t["id"]
+        return t
     if len(teams) < 2:
         raise Err("اختر فصلين على الأقل")
     if d.get("order") == "random":
@@ -242,6 +255,22 @@ def match_status(m):
 def t_view(t):
     if not t:
         return None
+    if t.get("type") == "independent":
+        results = t.get("results") or {}
+        classes = []
+        for cid in t.get("classIds", []):
+            c = get_class(cid)
+            if c:
+                classes.append({"class": class_info(cid), "questionCount": len(c["questions"]), "result": results.get(cid)})
+        classes.sort(key=lambda x: (
+            x["result"] is None,
+            -(x["result"] or {}).get("avg", 0),
+            -(x["result"] or {}).get("accuracy", 0),
+            (x["result"] or {}).get("avgFinishMs") or float("inf"),
+            (x["result"] or {}).get("avgMs") or float("inf"),
+            natkey(x["class"]["name"]),
+        ))
+        return {"id": t["id"], "name": t["name"], "type": "independent", "createdAt": t["createdAt"], "classes": classes}
 
     def mv(m):
         sc = None
@@ -260,11 +289,12 @@ players = {}
 admin_tokens = set()
 sessions = {}
 display_view = "auto"
-timer = None
+timer_handles = {}
+class_games = {}
 
 
 def idle_live():
-    return {"phase": "idle", "tournamentId": None, "matchId": None, "roundName": "", "teams": [], "sets": {},
+    return {"phase": "idle", "mode": "league", "tournamentId": None, "matchId": None, "roundName": "", "teams": [], "sets": {},
             "qIndex": -1, "qCount": 0, "countdownEndsAt": 0, "qStartedAt": 0, "qEndsAt": 0, "qDuration": 0,
             "answers": {}, "pstats": {}, "result": None}
 
@@ -272,17 +302,36 @@ def idle_live():
 live = idle_live()
 
 
-def set_timer(sec, fn):
-    global timer
-    clear_timer()
-    timer = asyncio.get_event_loop().call_later(sec, fn)
+def set_timer(sec, fn, key=None):
+    clear_timer(key)
+    state = live
+    timer_key = (id(state), key)
+
+    def run():
+        global live
+        timer_handles.pop(timer_key, None)
+        previous = live
+        live = state
+        try:
+            fn()
+        finally:
+            live = previous
+
+    timer_handles[timer_key] = asyncio.get_event_loop().call_later(sec, run)
 
 
-def clear_timer():
-    global timer
-    if timer:
-        timer.cancel()
-        timer = None
+def clear_timer(key=None):
+    handle = timer_handles.pop((id(live), key), None)
+    if handle:
+        handle.cancel()
+
+
+def clear_game_timers(state):
+    state_id = id(state)
+    for timer_key, handle in list(timer_handles.items()):
+        if timer_key[0] == state_id:
+            handle.cancel()
+            timer_handles.pop(timer_key, None)
 
 
 def prep_question(q):
@@ -306,9 +355,28 @@ def ensure_participant(p):
         return
     if p["id"] not in live["pstats"]:
         live["pstats"][p["id"]] = {"id": p["id"], "name": p["name"], "classId": p["classId"], "score": 0, "correct": 0, "answered": 0,
-                                   "streak": 0, "totalMs": 0, "lastPoints": 0, "lastCorrect": None}
+                                   "streak": 0, "totalMs": 0, "lastPoints": 0, "lastCorrect": None,
+                                   "qIndex": -1, "playerPhase": "lobby", "startedAt": None, "qStartedAt": 0,
+                                   "qEndsAt": 0, "qDuration": 0, "completedAt": None, "lastAnswer": None}
     else:
         live["pstats"][p["id"]]["name"] = p["name"]
+
+
+def ensure_player_participant(p):
+    global live
+    game = class_games.get(p["classId"])
+    if game and game["phase"] != "idle":
+        previous = live
+        live = game
+        try:
+            existing = p["id"] in live["pstats"]
+            if live["phase"] == "lobby" or existing:
+                ensure_participant(p)
+            class_games[p["classId"]] = live
+        finally:
+            live = previous
+        return
+    ensure_participant(p)
 
 
 def participants_of(cid):
@@ -336,6 +404,8 @@ def open_match(d):
     ca, cb = get_class(m["a"]), get_class(m["b"])
     if not ca or not cb:
         raise Err("أحد الفصول محذوف")
+    if any(game["phase"] != "idle" for game in class_games.values()):
+        raise Err("أغلق مسابقات الفصول المنفصلة قبل بدء مباراة الدوري")
     for c in (ca, cb):
         if not c["questions"]:
             raise Err(f"لا توجد أسئلة للفصل {c['name']}")
@@ -347,6 +417,46 @@ def open_match(d):
     db["activeTournamentId"] = t["id"]
     for p in players.values():
         ensure_participant(p)
+
+
+def open_independent_class(d):
+    global live
+    if live["phase"] not in ("idle", "finished"):
+        raise Err("هناك مسابقة جارية حالياً")
+    t = get_t(d.get("tournamentId"))
+    cid = d.get("classId")
+    if not t or t.get("type") != "independent" or cid not in t.get("classIds", []):
+        raise Err("مسابقة الفصل غير موجودة")
+    c = get_class(cid)
+    if not c or not c["questions"]:
+        raise Err("لا توجد أسئلة لهذا الفصل")
+    if live["phase"] != "idle":
+        raise Err("أغلق مباراة الدوري قبل بدء مسابقات الفصول")
+    if cid in (t.get("results") or {}):
+        raise Err("اكتملت مسابقة هذا الفصل — أعد تعيين نتيجته أولاً")
+    clear_timer()
+    live = idle_live()
+    live.update(mode="independent", phase="lobby", tournamentId=t["id"], matchId=f"{t['id']}:{cid}",
+                roundName=f"مسابقة الفصل {c['name']}", teams=[cid], qCount=len(c["questions"]),
+                sets={cid: [prep_question(q) for q in c["questions"]]})
+    db["activeTournamentId"] = t["id"]
+    for p in players.values():
+        ensure_participant(p)
+    class_games[cid] = live
+
+
+def reset_independent_result(d):
+    t = get_t(d.get("tournamentId"))
+    cid = d.get("classId")
+    if not t or t.get("type") != "independent" or cid not in t.get("classIds", []):
+        raise Err("مسابقة الفصل غير موجودة")
+    game = class_games.get(cid)
+    if game and game["tournamentId"] == t["id"] and game["phase"] != "idle":
+        raise Err("أغلق المسابقة الحالية أولاً")
+    results = t.setdefault("results", {})
+    if cid not in results:
+        raise Err("لا توجد نتيجة محفوظة لهذا الفصل")
+    del results[cid]
 
 
 def start_question(i):
@@ -366,11 +476,136 @@ def start_question(i):
     set_timer(COUNTDOWN_MS / 1000, go)
 
 
+def start_independent_competition():
+    if live["phase"] != "lobby":
+        raise Err("افتح مسابقة الفصل أولاً")
+    cid = live["teams"][0]
+    active = [p for p in participants_of(cid) if is_connected(p["id"])]
+    if not active:
+        raise Err("يجب أن ينضم طالب واحد على الأقل من الفصل قبل البدء")
+    active_ids = {p["id"] for p in active}
+    live["pstats"] = {pid: ps for pid, ps in live["pstats"].items() if pid in active_ids}
+    now = now_ms()
+    for ps in active:
+        ps.update(qIndex=0, playerPhase="question", startedAt=now, qStartedAt=now,
+                  qDuration=live["sets"][cid][0]["time"] * 1000,
+                  qEndsAt=now + live["sets"][cid][0]["time"] * 1000, completedAt=None)
+        set_timer(ps["qDuration"] / 1000, lambda pid=ps["id"]: advance_independent_player(pid), ps["id"])
+    live.update(phase="question", qIndex=0, qStartedAt=now,
+                qDuration=max(live["sets"][cid][0]["time"] * 1000, 1),
+                qEndsAt=now + live["sets"][cid][0]["time"] * 1000)
+
+
+def independent_team_score(cid):
+    ps = participants_of(cid)
+    questions = live["qCount"]
+    possible = len(ps) * questions
+    answered = sum(p["answered"] for p in ps)
+    total = sum(p["score"] for p in ps)
+    correct = sum(p["correct"] for p in ps)
+    durations = [p["completedAt"] - p["startedAt"] for p in ps if p["completedAt"] is not None and p["startedAt"] is not None]
+    return {
+        "players": len(ps), "connected": sum(1 for p in ps if is_connected(p["id"])),
+        "total": total, "correct": correct,
+        "avg": round(total / possible, 2) if possible else 0,
+        "accuracy": jround(100 * correct / possible) if possible else 0,
+        "avgMs": jround(sum(p["totalMs"] for p in ps) / answered) if answered else None,
+        "avgFinishMs": jround(sum(durations) / len(durations)) if durations else None,
+        "finished": sum(1 for p in ps if p["playerPhase"] == "finished"),
+    }
+
+
+def finish_independent_competition():
+    if live["phase"] != "question" or not live["pstats"]:
+        return
+    if any(ps["playerPhase"] != "finished" for ps in live["pstats"].values()):
+        return
+    clear_game_timers(live)
+    cid = live["teams"][0]
+    score = independent_team_score(cid)
+    top = sorted(live["pstats"].values(), key=lambda p: (-p["score"], p["completedAt"] - p["startedAt"]))
+    leaderboard = [{"id": p["id"], "name": p["name"], "classId": p["classId"],
+                    "className": class_name(p["classId"]), "score": p["score"],
+                    "correct": p["correct"], "streak": p["streak"],
+                    "completionMs": p["completedAt"] - p["startedAt"]} for p in top[:10]]
+    result = {**score, "qCount": live["qCount"], "date": now_ms(), "top": leaderboard}
+    tournament = get_t(live["tournamentId"])
+    if tournament:
+        tournament.setdefault("results", {})[cid] = result
+    live["qIndex"] = live["qCount"] - 1
+    live["phase"] = "finished"
+    live["result"] = {"scores": {cid: score}, "winner": None, "tie": False,
+                      "top": leaderboard, "qCount": live["qCount"], "date": result["date"],
+                      "mode": "independent"}
+    db["history"].insert(0, {"id": uid(), "tournament": tournament["name"] if tournament else "",
+                             "roundName": live["roundName"], "date": result["date"],
+                             "teams": [class_name(cid)], "scores": [score["avg"]],
+                             "winner": None, "type": "independent"})
+    db["history"] = db["history"][:200]
+    save()
+    push_admin_data()
+
+
+def advance_independent_player(player_id, choice=None):
+    ps = live["pstats"].get(player_id)
+    if live["mode"] != "independent" or live["phase"] != "question" or not ps or ps["playerPhase"] != "question":
+        return
+    cid = ps["classId"]
+    q_index = ps["qIndex"]
+    q = live["sets"][cid][q_index]
+    now = now_ms()
+    elapsed = max(0, min(now - ps["qStartedAt"], ps["qDuration"]))
+    correct = choice == q["correctIndex"] if choice is not None else False
+    if correct:
+        ps["streak"] += 1
+        ps["correct"] += 1
+        points = round(5 * (1 - elapsed / ps["qDuration"]), 2)
+    else:
+        ps["streak"] = 0
+        points = 0
+    ps["score"] += points
+    ps["answered"] += 1
+    ps["totalMs"] += elapsed
+    ps["lastPoints"] = points
+    ps["lastCorrect"] = correct
+    ps["lastAnswer"] = {"correct": correct, "points": points, "timedOut": choice is None}
+    st = db["questionStats"].setdefault(q["id"], {"text": q["text"], "classId": cid, "asked": 0, "correct": 0})
+    st["text"] = q["text"]
+    st["asked"] += 1
+    st["correct"] += int(correct)
+    clear_timer(player_id)
+    next_index = q_index + 1
+    if next_index >= live["qCount"]:
+        ps["playerPhase"] = "finished"
+        ps["completedAt"] = now
+        finish_independent_competition()
+    else:
+        ps["qIndex"] = next_index
+        ps["qStartedAt"] = now
+        ps["qDuration"] = live["sets"][cid][next_index]["time"] * 1000
+        ps["qEndsAt"] = now + ps["qDuration"]
+        set_timer(ps["qDuration"] / 1000,
+                  lambda pid=player_id: advance_independent_player(pid), player_id)
+    broadcast()
+
+
 def answer(p, choice):
     if live["phase"] != "question":
         return
     ps = live["pstats"].get(p["id"])
-    if not ps or p["id"] in live["answers"]:
+    if not ps:
+        return
+    if live["mode"] == "independent":
+        if ps["playerPhase"] != "question":
+            return
+        q = live["sets"][p["classId"]][ps["qIndex"]]
+        if not isinstance(choice, int) or isinstance(choice, bool) or choice < 0 or choice >= len(q["options"]):
+            return
+        if now_ms() > ps["qEndsAt"] + 500:
+            return
+        advance_independent_player(p["id"], choice)
+        return
+    if p["id"] in live["answers"]:
         return
     now = now_ms()
     if now > live["qEndsAt"] + 500:
@@ -384,7 +619,10 @@ def answer(p, choice):
     if correct:
         ps["streak"] += 1
         ps["correct"] += 1
-        points = jround(1000 * (1 - min(ms, live["qDuration"]) / live["qDuration"] / 2)) + min(ps["streak"] - 1, 3) * 100
+        if live["mode"] == "independent":
+            points = round(5 * (1 - min(ms, live["qDuration"]) / live["qDuration"]), 2)
+        else:
+            points = jround(1000 * (1 - min(ms, live["qDuration"]) / live["qDuration"] / 2)) + min(ps["streak"] - 1, 3) * 100
     else:
         ps["streak"] = 0
     ps["score"] += points
@@ -421,13 +659,19 @@ def reveal():
 def team_scores():
     res = {}
     for cid in live["teams"]:
+        if live["mode"] == "independent":
+            res[cid] = independent_team_score(cid)
+            continue
         ps = participants_of(cid)
         total = sum(p["score"] for p in ps)
         correct = sum(p["correct"] for p in ps)
         answered = sum(p["answered"] for p in ps)
         asked = live["qIndex"] if live["phase"] in ("lobby", "countdown") else live["qIndex"] + 1
+        average = total / len(ps) if ps else 0
+        if live["mode"] == "independent" and ps and asked > 0:
+            average /= asked
         res[cid] = {"players": len(ps), "connected": sum(1 for p in ps if is_connected(p["id"])), "total": total, "correct": correct,
-                    "avg": jround(total / len(ps)) if ps else 0,
+                    "avg": round(average, 2) if live["mode"] == "independent" else jround(average),
                     "accuracy": jround(100 * correct / (len(ps) * asked)) if ps and asked > 0 else 0,
                     "avgMs": jround(sum(p["totalMs"] for p in ps) / answered) if answered else None}
     return res
@@ -442,35 +686,58 @@ def match_leaderboard(limit=10):
 def finish():
     clear_timer()
     t = get_t(live["tournamentId"])
-    f = t and find_match(t, live["matchId"])
+    f = t and live["mode"] != "independent" and find_match(t, live["matchId"])
     live["qIndex"] = live["qCount"] - 1
     live["phase"] = "finished"
     scores = team_scores()
-    a, b = live["teams"]
-    A, B = scores[a], scores[b]
-    cmp = (A["avg"] - B["avg"]) or (A["accuracy"] - B["accuracy"]) or ((B["avgMs"] if B["avgMs"] is not None else 1e12) - (A["avgMs"] if A["avgMs"] is not None else 1e12))
-    if not A["players"] and not B["players"]:
-        cmp = 0
-    winner = a if cmp > 0 else b if cmp < 0 else None
-    live["result"] = {"scores": scores, "winner": winner, "tie": not winner, "top": match_leaderboard(10), "qCount": live["qCount"], "date": now_ms()}
-    for ps in live["pstats"].values():
-        key = f"{ps['classId']}:{ps['name'].strip().lower()}"
-        s = db["players"].setdefault(key, {"name": ps["name"], "classId": ps["classId"], "score": 0, "correct": 0, "questions": 0, "matches": 0})
-        s["name"] = ps["name"]
-        s["score"] += ps["score"]
-        s["correct"] += ps["correct"]
-        s["questions"] += live["qCount"]
-        s["matches"] += 1
-    for cid in live["teams"]:
-        c = get_class(cid)
-        if c and c["questions"]:
-            c["cursor"] = ((c.get("cursor") or 0) + live["qCount"]) % len(c["questions"])
-    if f:
-        f[0]["result"] = live["result"]
-        f[0]["winner"] = winner
-        recompute(t)
-    db["history"].insert(0, {"id": uid(), "tournament": t["name"] if t else "", "roundName": live["roundName"], "date": now_ms(),
-                             "teams": [class_name(a), class_name(b)], "scores": [A["avg"], B["avg"]], "winner": class_name(winner) if winner else None})
+    if live["mode"] == "independent":
+        cid = live["teams"][0]
+        result = scores[cid]
+        tournament = get_t(live["tournamentId"])
+        if tournament:
+            tournament.setdefault("results", {})[cid] = {
+                "avg": result["avg"], "total": result["total"], "correct": result["correct"],
+                "accuracy": result["accuracy"], "avgMs": result["avgMs"], "players": result["players"],
+                "qCount": live["qCount"], "date": now_ms(), "top": match_leaderboard(10),
+            }
+        live["result"] = {"scores": scores, "winner": None, "tie": False, "top": match_leaderboard(10),
+                          "qCount": live["qCount"], "date": now_ms(), "mode": "independent"}
+        a = cid
+        A = result
+        B = None
+        f = None
+        t = tournament
+    else:
+        a, b = live["teams"]
+        A, B = scores[a], scores[b]
+        cmp = (A["avg"] - B["avg"]) or (A["accuracy"] - B["accuracy"]) or ((B["avgMs"] if B["avgMs"] is not None else 1e12) - (A["avgMs"] if A["avgMs"] is not None else 1e12))
+        if not A["players"] and not B["players"]:
+            cmp = 0
+        winner = a if cmp > 0 else b if cmp < 0 else None
+        live["result"] = {"scores": scores, "winner": winner, "tie": not winner, "top": match_leaderboard(10), "qCount": live["qCount"], "date": now_ms()}
+    if live["mode"] != "independent":
+        for ps in live["pstats"].values():
+            key = f"{ps['classId']}:{ps['name'].strip().lower()}"
+            s = db["players"].setdefault(key, {"name": ps["name"], "classId": ps["classId"], "score": 0, "correct": 0, "questions": 0, "matches": 0})
+            s["name"] = ps["name"]
+            s["score"] += ps["score"]
+            s["correct"] += ps["correct"]
+            s["questions"] += live["qCount"]
+            s["matches"] += 1
+    if live["mode"] == "independent":
+        db["history"].insert(0, {"id": uid(), "tournament": t["name"] if t else "", "roundName": live["roundName"], "date": now_ms(),
+                                 "teams": [class_name(a)], "scores": [A["avg"]], "winner": None, "type": "independent"})
+    else:
+        for cid in live["teams"]:
+            c = get_class(cid)
+            if c and c["questions"]:
+                c["cursor"] = ((c.get("cursor") or 0) + live["qCount"]) % len(c["questions"])
+        if f:
+            f[0]["result"] = live["result"]
+            f[0]["winner"] = winner
+            recompute(t)
+        db["history"].insert(0, {"id": uid(), "tournament": t["name"] if t else "", "roundName": live["roundName"], "date": now_ms(),
+                                 "teams": [class_name(a), class_name(b)], "scores": [A["avg"], B["avg"]], "winner": class_name(winner) if winner else None})
     db["history"] = db["history"][:200]
     save()
 
@@ -513,6 +780,8 @@ def standings():
     mp = {c["id"]: {"id": c["id"], "name": c["name"], "grade": c["grade"], "played": 0, "wins": 0, "losses": 0, "points": 0, "correct": 0, "accuracySum": 0}
           for c in db["classes"]}
     for t in db["tournaments"]:
+        if t.get("type") == "independent":
+            continue
         for r in t["rounds"]:
             for m in r:
                 if not m["result"]:
@@ -548,15 +817,16 @@ def match_info():
     if not live["matchId"]:
         return None
     t = get_t(live["tournamentId"])
-    return {"id": live["matchId"], "tournamentId": live["tournamentId"], "tournament": t["name"] if t else "", "roundName": live["roundName"],
+    return {"id": live["matchId"], "tournamentId": live["tournamentId"], "tournament": t["name"] if t else "", "roundName": live["roundName"], "type": live["mode"],
             "teams": [class_info(c) for c in live["teams"]]}
 
 
-def question_view(cid, with_answer, with_dist):
+def question_view(cid, with_answer, with_dist, q_index=None):
     qs = live["sets"].get(cid) or []
-    if not 0 <= live["qIndex"] < len(qs):
+    q_index = live["qIndex"] if q_index is None else q_index
+    if not 0 <= q_index < len(qs):
         return None
-    q = qs[live["qIndex"]]
+    q = qs[q_index]
     v = {"text": q["text"], "options": q["options"], "time": q["time"]}
     if with_answer:
         v["correctIndex"] = q["correctIndex"]
@@ -569,7 +839,7 @@ def question_view(cid, with_answer, with_dist):
     return v
 
 
-def public_state(for_admin):
+def _public_state_current(for_admin):
     t = get_t(db["activeTournamentId"])
     s = {"now": now_ms(), "phase": live["phase"], "view": display_view, "match": match_info(), "qIndex": live["qIndex"], "qCount": live["qCount"],
          "countdownEndsAt": live["countdownEndsAt"], "endsAt": live["qEndsAt"], "duration": live["qDuration"],
@@ -590,9 +860,39 @@ def public_state(for_admin):
     return s
 
 
+def public_state(for_admin):
+    global live
+    previous = live
+    state = _public_state_current(for_admin)
+    games = []
+    try:
+        for cid, game in list(class_games.items()):
+            live = game
+            c = class_info(cid)
+            participants = participants_of(cid)
+            scores = team_scores()
+            games.append({
+                "classId": cid, "phase": game["phase"], "match": match_info(),
+                "qCount": game["qCount"], "qIndex": max((ps["qIndex"] for ps in participants), default=-1),
+                "teamScores": scores,
+                "participants": {cid: [{"name": ps["name"], "connected": is_connected(ps["id"]),
+                                        "answered": ps["playerPhase"] == "finished",
+                                        "qIndex": ps["qIndex"], "playerPhase": ps["playerPhase"]}
+                                       for ps in participants]},
+                "answered": {cid: sum(1 for ps in participants if ps["playerPhase"] == "finished")},
+                "result": game["result"], "class": c,
+            })
+    finally:
+        live = previous
+    state["classGames"] = games
+    return state
+
+
 def next_match_for(cid):
     t = get_t(db["activeTournamentId"])
     if not t:
+        return None
+    if t.get("type") == "independent":
         return None
     for r in t["rounds"]:
         for m in r:
@@ -601,22 +901,43 @@ def next_match_for(cid):
     return {"champion": True} if t["championId"] == cid else None
 
 
-def player_state(p):
+def _player_state_current(p):
     ps = live["pstats"].get(p["id"])
-    show_q = bool(ps) and live["phase"] in ("question", "reveal")
+    independent = live["mode"] == "independent"
+    player_phase = ps["playerPhase"] if independent and ps else live["phase"]
+    phase = "finished" if independent and live["phase"] == "finished" else "playerFinished" if independent and ps and player_phase == "finished" else player_phase
+    q_index = ps["qIndex"] if independent and ps else live["qIndex"]
+    show_q = bool(ps) and (player_phase == "question" if independent else live["phase"] in ("question", "reveal"))
     revealed = live["phase"] in ("reveal", "finished")
     ans = live["answers"].get(p["id"])
     rank = sum(1 for x in live["pstats"].values() if x["score"] > ps["score"]) + 1 if ps else None
-    return {"now": now_ms(), "phase": live["phase"], "inMatch": bool(ps), "match": match_info(),
+    return {"now": now_ms(), "phase": phase, "inMatch": bool(ps), "match": match_info(),
             "me": {"id": p["id"], "name": p["name"], "classId": p["classId"], "className": class_name(p["classId"])},
-            "qIndex": live["qIndex"], "qCount": live["qCount"], "countdownEndsAt": live["countdownEndsAt"], "endsAt": live["qEndsAt"], "duration": live["qDuration"],
-            "question": question_view(p["classId"], live["phase"] == "reveal", False) if show_q else None,
+            "qIndex": q_index, "qCount": live["qCount"], "countdownEndsAt": live["countdownEndsAt"],
+            "endsAt": ps["qEndsAt"] if independent and ps else live["qEndsAt"],
+            "duration": ps["qDuration"] if independent and ps else live["qDuration"],
+            "question": question_view(p["classId"], live["phase"] == "reveal", False, q_index) if show_q else None,
             "myAnswer": (ans if revealed else {"choice": ans["choice"]}) if ans else None,
+            "lastAnswer": ps["lastAnswer"] if independent and ps else None,
             "stats": {"score": ps["score"], "correct": ps["correct"], "streak": ps["streak"], "rank": rank, "total": len(live["pstats"]),
-                      "lastPoints": ps["lastPoints"] if revealed else None, "lastCorrect": ps["lastCorrect"] if revealed else None} if ps else None,
-            "teamScores": team_scores() if revealed else None,
-            "result": {"winner": live["result"]["winner"], "tie": live["result"]["tie"]} if live["phase"] == "finished" else None,
+                      "lastPoints": ps["lastPoints"] if independent or revealed else None,
+                      "lastCorrect": ps["lastCorrect"] if independent or revealed else None} if ps else None,
+            "teamScores": team_scores() if (revealed or independent) else None,
+            "result": {"winner": live["result"]["winner"], "tie": live["result"]["tie"]} if live["phase"] == "finished" and live["result"] else None,
             "next": next_match_for(p["classId"])}
+
+
+def player_state(p):
+    global live
+    game = class_games.get(p["classId"])
+    if not game or game["phase"] == "idle":
+        return _player_state_current(p)
+    previous = live
+    live = game
+    try:
+        return _player_state_current(p)
+    finally:
+        live = previous
 
 
 def lan_urls():
@@ -639,7 +960,8 @@ def admin_data():
             "history": db["history"][:50],
             "stats": {"top": top_players(100), "standings": standings(), "hardest": hardest_questions(10),
                       "totals": {"classes": len(db["classes"]), "questions": sum(len(c["questions"]) for c in db["classes"]),
-                                 "matches": sum(1 for t in db["tournaments"] for r in t["rounds"] for m in r if m["result"]),
+                                 "matches": sum(1 for t in db["tournaments"] if t.get("type") != "independent" for r in t["rounds"] for m in r if m["result"])
+                                            + sum(len(t.get("results") or {}) for t in db["tournaments"] if t.get("type") == "independent"),
                                  "players": len(db["players"]), "online": sum(1 for p in players.values() if p.get("connected"))}},
             "urls": lan_urls()}
 
@@ -677,6 +999,8 @@ def push_admin_data():
 def h_class_delete(d):
     if live["phase"] != "idle" and d.get("id") in live["teams"]:
         raise Err("الفصل يلعب الآن")
+    if any(game["phase"] != "idle" and d.get("id") in game["teams"] for game in class_games.values()):
+        raise Err("الفصل لديه مسابقة جارية")
     db["classes"] = [c for c in db["classes"] if c["id"] != d.get("id")]
 
 
@@ -708,6 +1032,8 @@ def h_tournament_delete(d):
     tid = d.get("id")
     if live["tournamentId"] == tid and live["phase"] != "idle":
         raise Err("هناك مباراة جارية في هذا الدوري")
+    if any(game["tournamentId"] == tid and game["phase"] != "idle" for game in class_games.values()):
+        raise Err("هناك مسابقات جارية في هذا الدوري")
     db["tournaments"] = [t for t in db["tournaments"] if t["id"] != tid]
     if db["activeTournamentId"] == tid:
         db["activeTournamentId"] = db["tournaments"][-1]["id"] if db["tournaments"] else None
@@ -716,22 +1042,31 @@ def h_tournament_delete(d):
 def h_activate(d):
     if not get_t(d.get("id")):
         raise Err("الدوري غير موجود")
+    if d["id"] != db["activeTournamentId"] and (live["phase"] != "idle" or any(game["phase"] != "idle" for game in class_games.values())):
+        raise Err("أغلق المسابقات الجارية قبل تغيير المسابقة النشطة")
     db["activeTournamentId"] = d["id"]
 
 
 def h_start(d):
+    if live["mode"] == "independent":
+        start_independent_competition()
+        return
     if live["phase"] != "lobby":
         raise Err("افتح مباراة أولاً")
     start_question(0)
 
 
 def h_reveal(d):
+    if live["mode"] == "independent":
+        raise Err("أسئلة هذا النمط تنتقل تلقائياً بعد إجابة كل طالب")
     if live["phase"] != "question":
         raise Err("لا يوجد سؤال مفتوح")
     reveal()
 
 
 def h_next(d):
+    if live["mode"] == "independent":
+        raise Err("كل طالب ينتقل تلقائياً إلى السؤال التالي")
     if live["phase"] != "reveal":
         raise Err("أظهر الإجابة أولاً")
     if live["qIndex"] + 1 < live["qCount"]:
@@ -742,7 +1077,7 @@ def h_next(d):
 
 def h_cancel(d):
     global live
-    clear_timer()
+    clear_game_timers(live)
     live = idle_live()
 
 
@@ -750,6 +1085,7 @@ def h_close(d):
     global live
     if live["phase"] != "finished":
         raise Err("المباراة لم تنتهِ")
+    clear_game_timers(live)
     live = idle_live()
 
 
@@ -765,11 +1101,12 @@ def h_stats_reset(d):
 
 def h_data_reset(d):
     global db
-    if live["phase"] != "idle":
+    if live["phase"] != "idle" or any(game["phase"] != "idle" for game in class_games.values()):
         raise Err("أغلق المباراة الحالية أولاً")
     pw = db.get("adminPassword")
     db = empty_db()
     db["adminPassword"] = pw
+    class_games.clear()
 
 
 def h_password(d):
@@ -783,7 +1120,8 @@ def h_password(d):
 ADMIN_HANDLERS = {
     "class:create": lambda d: create_class(d) and None, "class:delete": h_class_delete, "class:saveQuestions": h_save_questions, "class:copyQuestions": h_copy_questions,
     "tournament:create": lambda d: {"id": create_tournament(d)["id"]}, "tournament:delete": h_tournament_delete, "tournament:activate": h_activate,
-    "match:open": open_match, "match:start": h_start, "match:reveal": h_reveal, "match:next": h_next, "match:cancel": h_cancel, "match:close": h_close,
+    "match:open": open_match, "classCompetition:open": open_independent_class, "classCompetition:reset": reset_independent_result,
+    "match:start": h_start, "match:reveal": h_reveal, "match:next": h_next, "match:cancel": h_cancel, "match:close": h_close,
     "match:setWinner": set_winner, "match:reset": reset_match, "display:view": h_view, "stats:reset": h_stats_reset,
     "data:reset": h_data_reset, "admin:password": h_password,
 }
@@ -835,7 +1173,7 @@ async def player_join(sid, d=None):
         spawn(sio.emit("kicked", to=p["sid"]))
     p.update(name=name, classId=c["id"], sid=sid, connected=True)
     sessions.setdefault(sid, {})["playerId"] = p["id"]
-    ensure_participant(p)
+    ensure_player_participant(p)
     push_admin_data()
     broadcast()
     return {"ok": True, "id": p["id"], "name": p["name"], "classId": p["classId"]}
@@ -845,7 +1183,18 @@ async def player_join(sid, d=None):
 async def player_answer(sid, d=None):
     p = players.get(sessions.get(sid, {}).get("playerId"))
     if p and p.get("sid") == sid:
-        answer(p, (d or {}).get("choice") if isinstance(d, dict) else None)
+        game = class_games.get(p["classId"])
+        if game and game["phase"] != "idle":
+            global live
+            previous = live
+            live = game
+            try:
+                answer(p, (d or {}).get("choice") if isinstance(d, dict) else None)
+            finally:
+                class_games[p["classId"]] = live
+                live = previous
+        else:
+            answer(p, (d or {}).get("choice") if isinstance(d, dict) else None)
 
 
 @sio.on("player:leave")
@@ -854,7 +1203,11 @@ async def player_leave(sid, d=None):
     p = players.get(s.get("playerId"))
     if not p:
         return
-    if p["id"] in live["pstats"] and live["phase"] == "lobby":
+    game = class_games.get(p["classId"])
+    if game and game["phase"] != "idle":
+        if p["id"] in game["pstats"] and game["phase"] == "lobby":
+            del game["pstats"][p["id"]]
+    elif p["id"] in live["pstats"] and live["phase"] == "lobby":
         del live["pstats"][p["id"]]
     players.pop(p["id"], None)
     s["playerId"] = None
@@ -872,12 +1225,33 @@ async def disconnect(sid, *args):
 
 def make_admin_handler(fn):
     async def handler(sid, d=None):
+        global live
         if not sessions.get(sid, {}).get("admin"):
             return {"ok": False, "error": "غير مصرح"}
+        d = d if isinstance(d, dict) else {}
+        class_id = d.get("classId")
+        if not isinstance(class_id, str):
+            class_id = None
+        use_class_game = class_id in class_games or fn is open_independent_class or fn is reset_independent_result
+        previous = live
+        if fn is open_independent_class and previous["phase"] != "idle":
+            return {"ok": False, "error": "أغلق مباراة الدوري قبل بدء مسابقات الفصول"}
         try:
-            r = fn(d if isinstance(d, dict) else {})
+            if use_class_game:
+                live = class_games.get(class_id, idle_live())
+            try:
+                r = fn(d)
+            except Err as e:
+                return {"ok": False, "error": str(e)}
         except Err as e:
             return {"ok": False, "error": str(e)}
+        finally:
+            if use_class_game:
+                if live["phase"] == "idle":
+                    class_games.pop(class_id, None)
+                else:
+                    class_games[class_id] = live
+                live = previous
         save()
         push_admin_data()
         spawn(sio.emit("classes", class_list()))
