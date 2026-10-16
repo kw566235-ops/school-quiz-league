@@ -85,6 +85,7 @@
   function miniVs() {
     const [a, b] = st.match.teams;
     const t = (x) => `<span class="t ${teamClass(x?.id)} ${x?.id === st.me.classId ? 'mine' : ''}">${esc(x?.name || '—')}</span>`;
+    if (st.match.type === 'independent') return `<div class="mini-vs">${t(a)}</div>`;
     return `<div class="mini-vs">${t(a)}<span class="muted" style="font-size:1rem">ضد</span>${t(b)}</div>`;
   }
 
@@ -102,6 +103,7 @@
     if (p === 'countdown') return (app.innerHTML = countdown());
     if (p === 'question') return (app.innerHTML = st.myAnswer ? answered() : question());
     if (p === 'reveal') return (app.innerHTML = reveal());
+    if (p === 'playerFinished') return (app.innerHTML = playerFinished());
     if (p === 'finished') return (app.innerHTML = finished());
   }
 
@@ -114,6 +116,10 @@
 
   function waiting() {
     if (st.match && st.phase !== 'idle') {
+      if (st.match.type === 'independent') {
+        return `<div class="center fade-in"><span class="badge live">مسابقة فصل جارية</span><h2>${esc(st.match.roundName)}</h2>
+          <p class="muted" style="max-width:420px">المسابقة الحالية لفصل آخر. انتظر حتى يفتح المعلم مسابقة فصلك.</p></div>`;
+      }
       return `<div class="center fade-in"><span class="badge live">مباراة جارية</span><h2>${esc(st.match.roundName)}</h2>${miniVs()}
         <p class="muted" style="max-width:420px">فصلك ليس طرفاً في هذه المباراة. تابع الشاشة الكبيرة وشجّع!</p>${nextInfo()}</div>`;
     }
@@ -132,6 +138,7 @@
     if (!q) return waiting();
     return `<div class="fade-in">
       <div class="qhead"><span class="badge">السؤال ${st.qIndex + 1} / ${st.qCount}</span><span class="badge"><span data-ends="${st.endsAt}" data-dur="${st.duration}"></span> ث</span></div>
+      ${st.match.type === 'independent' && st.lastAnswer ? `<div class="badge ${st.lastAnswer.correct ? 'ok' : 'warn'}" style="margin:10px 0">${st.lastAnswer.timedOut ? 'انتهى الوقت، انتقل للسؤال التالي' : st.lastAnswer.correct ? `إجابة صحيحة · +${fmt(st.lastAnswer.points)} نقطة` : 'إجابة غير صحيحة · انتقل للسؤال التالي'}</div>` : ''}
       <div class="timerbar" data-ends="${st.endsAt}" data-dur="${st.duration}"><i></i></div>
       <div class="card qtext">${esc(q.text)}</div>
       <div class="options">${q.options.map((o, i) => `<button class="opt o${i}" data-choice="${i}"><span class="shape">${SHAPES[i]}</span><span>${esc(o)}</span></button>`).join('')}</div>
@@ -147,8 +154,12 @@
 
   function teamMini() {
     if (!st.teamScores || !st.match) return '';
-    const [a, b] = st.match.teams;
-    const sa = st.teamScores[a.id]?.avg || 0, sb = st.teamScores[b.id]?.avg || 0;
+    const a = st.match.teams[0], sa = st.teamScores[a.id]?.avg || 0;
+    if (st.match.type === 'independent') {
+      return `<div class="card" style="width:100%;max-width:520px;padding:16px;text-align:center">
+        <div class="muted" style="font-size:.85rem;margin-bottom:8px">متوسط نقاط الفصل لكل سؤال (من 5)</div><b style="font-size:1.6rem">${fmt(sa)} / 5</b></div>`;
+    }
+    const b = st.match.teams[1], sb = st.teamScores[b.id]?.avg || 0;
     return `<div class="card" style="width:100%;max-width:520px;padding:16px">
       <div class="muted" style="font-size:.85rem;margin-bottom:8px">متوسط نقاط الفصل</div>
       <div class="scorebar"><div class="a" style="flex-grow:${sa + 1}">${esc(a.name)} · ${fmt(sa)}</div><div class="b" style="flex-grow:${sb + 1}">${fmt(sb)} · ${esc(b.name)}</div></div></div>`;
@@ -161,7 +172,7 @@
     const title = ok ? 'إجابة صحيحة!' : late ? 'انتهى الوقت' : 'إجابة خاطئة';
     return `<div class="center fade-in">${ico}<h1 style="font-size:2.2rem">${title}</h1>
       ${ok ? `<div class="pts grad-text">+${fmt(s.lastPoints)}</div>` : ''}
-      ${ok && s.streak > 1 ? `<span class="badge warn">${icons.flame} سلسلة ${s.streak} إجابات صحيحة</span>` : ''}
+      ${ok && s.streak > 1 && st.match.type !== 'independent' ? `<span class="badge warn">${icons.flame} سلسلة ${s.streak} إجابات صحيحة</span>` : ''}
       ${!ok && q ? `<p class="muted">الإجابة الصحيحة: <b style="color:#fff">${esc(q.options[q.correctIndex])}</b></p>` : ''}
       <div class="stat-row"><div class="card"><div class="muted">مركزك</div><b style="font-size:1.6rem">#${s.rank} <small class="muted">من ${s.total}</small></b></div>
       <div class="card"><div class="muted">نقاطك</div><b style="font-size:1.6rem">${fmt(s.score)}</b></div></div>
@@ -170,6 +181,13 @@
 
   function finished() {
     const r = st.result, s = st.stats;
+    if (st.match.type === 'independent') {
+      const score = st.teamScores?.[st.me.classId];
+      return `<div class="center fade-in"><div class="result-ico ok">${icons.check}</div><h1 style="font-size:2.2rem">انتهى اختبار فصلكم</h1>
+        <div class="stat-row"><div class="card"><div class="muted">نقاطك</div><b style="font-size:1.6rem">${fmt(s.score)}</b></div>
+        <div class="card"><div class="muted">إجابات صحيحة</div><b style="font-size:1.6rem">${s.correct}/${st.qCount}</b></div></div>
+        ${score ? `<div class="card" style="width:100%;max-width:520px"><div class="muted">متوسط الفصل لكل سؤال</div><b style="font-size:1.8rem">${fmt(score.avg)} / 5</b><div class="muted">الدقة ${score.accuracy}% · متوسط زمن الإنهاء ${fmt(score.avgFinishMs / 1000)} ثانية</div></div>` : ''}</div>`;
+    }
     const mine = r.winner === st.me.classId;
     if (mine && celebrated !== st.match.id) { celebrated = st.match.id; setTimeout(() => confetti(), 200); }
     const winnerName = st.match.teams.find((t) => t.id === r.winner)?.name;
@@ -180,5 +198,12 @@
       <div class="stat-row"><div class="card"><div class="muted">مركزك</div><b style="font-size:1.6rem">#${s.rank}</b></div>
       <div class="card"><div class="muted">نقاطك</div><b style="font-size:1.6rem">${fmt(s.score)}</b></div>
       <div class="card"><div class="muted">إجابات صحيحة</div><b style="font-size:1.6rem">${s.correct}/${st.qCount}</b></div></div>${teamMini()}</div>`;
+  }
+
+  function playerFinished() {
+    const s = st.stats;
+    return `<div class="center fade-in"><div class="result-ico ok">${icons.check}</div><h1 style="font-size:2.2rem">أكملت الاختبار!</h1>
+      <p class="muted">نقاطك ${fmt(s.score)} · إجابات صحيحة ${s.correct} من ${st.qCount}</p>
+      <div class="card" style="width:100%;max-width:520px">أحسنت! انتظر اكتمال زملائك لعرض نتيجة الفصل وترتيبه.</div></div>`;
   }
 })();

@@ -75,6 +75,14 @@ window.App = (() => {
   }
   function renderBracket(t, opt = {}) {
     if (!t) return '<div class="empty">لا يوجد دوري نشط حالياً</div>';
+    if (t.type === 'independent') {
+      return `<div class="grid">${t.classes.map(({ class: c, questionCount, result }, i) => `<div class="ccard">
+        <div><b style="font-size:1.15rem">${i + 1}. ${esc(c.name)}</b><div class="muted" style="font-size:.85rem">${questionCount} سؤال${result ? ` · النتيجة ${fmt(result.avg)} / 5 · ${result.accuracy}%` : ' · لم تُلعب بعد'}</div>
+          ${result ? `<div class="muted" style="font-size:.8rem">${result.correct} إجابة صحيحة من ${result.qCount} · ${result.players} طالب${result.avgFinishMs != null ? ` · متوسط الإنهاء ${fmt(result.avgFinishMs / 1000)} ثانية` : ''}</div>` : ''}</div>
+        ${opt.admin ? `<div class="row" style="gap:6px">${result
+          ? `<button class="btn sm" data-reset-class="${c.id}">إعادة تعيين</button>`
+          : `<button class="btn sm pri" data-open-class="${c.id}">${icons.play} فتح المسابقة</button>`}</div>` : ''}</div>`).join('') || '<div class="empty">لا توجد فصول مشاركة</div>'}</div>`;
+    }
     const actions = (m) => {
       if (!opt.admin) return '';
       const b = [];

@@ -103,7 +103,7 @@
             <div><b class="ltr" style="display:block;word-break:break-all">${esc(url)}</b><span class="muted" style="font-size:.85rem">يجب أن تكون الأجهزة على نفس الشبكة</span></div></div></div>
         </div>
       </div>
-      <div class="card" style="margin-top:20px" data-tid="${t?.id || ''}"><div class="sec-title">${icons.sitemap} جدول المباريات — اضغط "فتح المباراة" لبدء أي مواجهة</div>${renderBracket(t, { admin: true })}</div>`;
+      <div class="card" style="margin-top:20px" data-tid="${t?.id || ''}"><div class="sec-title">${icons.sitemap} ${t?.type === 'independent' ? 'مسابقات الفصول ونتائجها' : 'جدول المباريات — اضغط "فتح المباراة" لبدء أي مواجهة'}</div>${renderBracket(t, { admin: true })}</div>`;
   }
 
   function vsHeader() {
@@ -111,7 +111,8 @@
     const ts = st.teamScores || {};
     const t = (x, cls) => `<div class="team ${cls}" style="padding:14px"><h2 style="font-size:2rem">${esc(x.name)}</h2>
       <div class="muted" style="font-size:.9rem">${ts[x.id]?.players || 0} طالب · ${ts[x.id]?.connected || 0} متصل</div>
-      ${st.phase !== 'lobby' ? `<div style="font-size:1.5rem;font-weight:900">${fmt(ts[x.id]?.avg)}</div><div class="muted" style="font-size:.8rem">متوسط النقاط</div>` : ''}</div>`;
+      ${st.phase !== 'lobby' ? `<div style="font-size:1.5rem;font-weight:900">${fmt(ts[x.id]?.avg)}${st.match.type === 'independent' ? ' / 5' : ''}</div><div class="muted" style="font-size:.8rem">${st.match.type === 'independent' ? 'متوسط النقاط لكل سؤال' : 'متوسط النقاط'}</div>` : ''}</div>`;
+    if (st.match.type === 'independent') return `<div style="margin-bottom:16px">${t(a, 'teamA')}</div>`;
     return `<div class="vs" style="margin-bottom:16px">${t(a, 'teamA')}<div class="vs-badge" style="width:56px;height:56px;font-size:1.1rem">VS</div>${t(b, 'teamB')}</div>`;
   }
 
@@ -125,6 +126,7 @@
         <div style="font-weight:800;margin-bottom:10px">${esc(q.text)}</div>
         <div class="options">${q.options.map((o, i) => `<div class="opt o${i} ${i === q.correctIndex ? 'correct' : st.phase === 'reveal' ? 'dim' : ''}"><span class="shape">${SHAPES[i]}</span><span>${esc(o)}</span><span class="cnt" style="font-size:1rem">${q.dist?.[i] ?? ''}</span></div>`).join('')}</div></div>`;
     };
+    if (st.match.type === 'independent') return `<div class="lpanel" style="grid-template-columns:1fr">${panel(a, 'teamA')}</div>`;
     return `<div class="lpanel">${panel(a, 'teamA')}${panel(b, 'teamB')}</div>`;
   }
 
@@ -137,6 +139,27 @@
 
   function liveControl() {
     const p = st.phase;
+    if (st.tournament?.type === 'independent') {
+      const games = new Map((st.classGames || []).map((game) => [game.classId, game]));
+      const classes = st.tournament.classes.map(({ class: c, questionCount, result }) => {
+        const game = games.get(c.id);
+        if (!game) return `<div class="ccard"><div><b>${esc(c.name)}</b><div class="muted">${result ? `${fmt(result.avg)} / 5 · دقة ${result.accuracy}% · إنهاء ${fmt(result.avgFinishMs / 1000)} ث · محفوظة` : `${questionCount} سؤال · جاهزة`}</div></div>
+          <div class="row">${result ? `<button class="btn sm" data-reset-class="${c.id}" data-tid="${st.tournament.id}">إعادة تعيين النتيجة</button>` : `<button class="btn sm pri" data-open-class="${c.id}" data-tid="${st.tournament.id}">${icons.play} فتح المسابقة</button>`}</div></div>`;
+        const score = game.teamScores?.[c.id];
+        const people = game.participants?.[c.id] || [];
+        const controls = game.phase === 'lobby' ? `<button class="btn sm ok" data-start data-class-id="${c.id}">${icons.play} ابدأ</button>`
+          : game.phase === 'countdown' ? '<span class="badge live">استعداد</span>'
+            : game.phase === 'question' ? '<span class="badge live">الأسئلة تنتقل تلقائياً</span>'
+                : `<button class="btn sm pri" data-close data-class-id="${c.id}">إغلاق النتيجة</button>`;
+        return `<div class="card" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><div><b style="font-size:1.15rem">${esc(c.name)}</b>
+          <div class="muted">${{ lobby: 'بانتظار البدء', countdown: 'استعداد', question: 'الاختبار ذاتي لكل طالب', finished: 'انتهت' }[game.phase]} · أكمل ${game.answered?.[c.id] || 0} من ${people.length}</div></div>
+          <div class="row">${controls}${game.phase !== 'finished' ? `<button class="btn sm bad" data-cancel data-class-id="${c.id}">إلغاء</button>` : ''}</div></div>
+          ${score && game.phase !== 'lobby' ? `<span class="badge">${fmt(score.avg)} / 5 · دقة ${score.accuracy}%</span>` : ''}
+          ${people.length ? `<div class="chips" style="justify-content:flex-start;margin-top:8px">${people.map((person) => `<span class="chip ${person.connected ? '' : 'off'}">${esc(person.name)}${person.playerPhase === 'finished' ? ' ✓' : person.playerPhase === 'question' ? ` · س${person.qIndex + 1}/${game.qCount}` : ''}</span>`).join('')}</div>` : ''}</div>`;
+      }).join('');
+      return `<div class="sec-title">${icons.bolt} مسابقات الفصول — يمكن تشغيل أكثر من فصل بالتوازي</div>
+        <p class="muted">لكل فصل أسئلته وتوقيته المستقل. افتح وابدأ كل فصل من بطاقته؛ الطلاب يدخلون تلقائياً إلى مسابقة فصلهم.</p>${classes}`;
+    }
     if (p === 'idle') {
       const ready = [];
       st.tournament?.rounds.forEach((r) => r.matches.forEach((m) => { if (m.status === 'ready') ready.push({ ...m, round: r.name }); }));
@@ -152,9 +175,9 @@
     if (p === 'lobby') {
       const empty = st.match.teams.filter((t) => !st.participants[t.id]?.length);
       return head + vsHeader() + `
-        <div class="lpanel">${st.match.teams.map((t, i) => `<div class="lq ${i ? 'teamB' : 'teamA'}"><b>${esc(t.name)}</b><div class="chips" style="justify-content:flex-start;margin-top:8px">${(st.participants[t.id] || []).map((x) => `<span class="chip ${x.connected ? '' : 'off'}">${esc(x.name)}</span>`).join('') || '<span class="muted">لم ينضم أحد بعد</span>'}</div></div>`).join('')}</div>
+        <div class="lpanel" style="${st.match.type === 'independent' ? 'grid-template-columns:1fr' : ''}">${st.match.teams.map((t, i) => `<div class="lq ${i ? 'teamB' : 'teamA'}"><b>${esc(t.name)}</b><div class="chips" style="justify-content:flex-start;margin-top:8px">${(st.participants[t.id] || []).map((x) => `<span class="chip ${x.connected ? '' : 'off'}">${esc(x.name)}</span>`).join('') || '<span class="muted">لم ينضم أحد بعد</span>'}</div></div>`).join('')}</div>
         ${empty.length ? `<p class="badge warn" style="margin-top:14px">لم ينضم أي طالب من: ${empty.map((t) => esc(t.name)).join('، ')}</p>` : ''}
-        <p class="muted">عدد الأسئلة: ${st.qCount} لكل فصل</p>
+        <p class="muted">عدد الأسئلة: ${st.qCount}${st.match.type === 'independent' ? ' (جميع أسئلة هذا الفصل)' : ' لكل فصل'}</p>
         <div class="row" style="margin-top:16px"><button class="btn ok xl" data-start>${icons.play} ابدأ المسابقة</button>${cancel}</div>`;
     }
     if (p === 'countdown') {
@@ -171,6 +194,13 @@
     }
     if (p === 'finished') {
       const r = st.result;
+      if (st.match.type === 'independent') {
+        const cid = st.match.teams[0].id, score = r.scores[cid];
+        return head + vsHeader() + `<div class="card" style="text-align:center;margin-bottom:14px"><div class="muted">متوسط النقاط لكل سؤال (الحد الأعلى 5)</div>
+          <div class="grad-text" style="font-size:3rem;font-weight:900">${fmt(score.avg)} / 5</div>
+          <div class="muted">${score.correct} إجابة صحيحة · دقة ${score.accuracy}% · ${score.players} طالب · ${st.qCount} سؤال</div></div>
+          ${lbTable(r.top)}<div class="row" style="margin-top:16px"><button class="btn pri lg" data-close>إغلاق والعودة للنتائج</button></div>`;
+      }
       const w = st.match.teams.find((t) => t.id === r.winner);
       return head + vsHeader() + (w
         ? `<div class="champion has" style="margin-bottom:14px">${icons.trophy}<span>${esc(w.name)}</span><div class="muted">${st.match.roundName === 'النهائي' ? 'بطل الدوري' : 'يتأهل للدور التالي'}</div></div>`
@@ -248,21 +278,23 @@
           <div data-tid="${t?.id || ''}">${renderBracket(t, { admin: true })}</div>
           ${data.tournaments.length ? `<div class="sec-title" style="margin-top:20px">كل الدوريات</div>
           ${data.tournaments.map((x) => `<div class="ccard"><div><b style="font-size:1.1rem">${esc(x.name)}</b>
-            <div class="muted" style="font-size:.85rem">${x.rounds.length} جولات · ${x.questionsPerMatch} أسئلة للمباراة ${x.champion ? `· البطل: ${esc(x.champion.name)}` : ''}</div></div>
+            <div class="muted" style="font-size:.85rem">${x.type === 'independent' ? `مسابقات منفصلة · ${x.classes.filter((c) => c.result).length}/${x.classes.length} فصول مكتملة` : `${x.rounds.length} جولات · ${x.questionsPerMatch} أسئلة للمباراة ${x.champion ? `· البطل: ${esc(x.champion.name)}` : ''}`}</div></div>
             <div class="row" style="gap:6px">${x.id === data.activeTournamentId ? '<span class="badge ok">نشط</span>' : `<button class="btn sm" data-activate="${x.id}">تفعيل</button>`}
             <button class="btn sm ${x.id === selT ? 'pri' : ''}" data-selt="${x.id}">عرض</button><button class="btn sm bad" data-delt="${x.id}">${icons.trash}</button></div></div>`).join('')}` : ''}
         </div>
         <div class="card"><div class="sec-title">${icons.plus} إنشاء دوري جديد</div>
           <div class="grid" style="gap:12px">
             <div><label class="lbl">اسم الدوري</label><input class="input" id="tName" placeholder="مثال: دوري المسابقات الثقافية"></div>
-            <div class="row" style="flex-wrap:nowrap"><div style="flex:1"><label class="lbl">عدد الأسئلة في كل مباراة</label><input class="input" id="tQ" type="number" min="1" max="50" value="5"></div>
+            <div><label class="lbl">نوع المسابقة</label><select class="input" id="tType"><option value="league">دوري خروج المغلوب — فصلان يتنافسان معاً</option><option value="independent">مسابقات منفصلة — كل فصل على حدة ونتيجته من 5 لكل سؤال</option></select></div>
+            <div class="row" id="leagueOptions" style="flex-wrap:nowrap"><div style="flex:1"><label class="lbl">عدد الأسئلة في كل مباراة</label><input class="input" id="tQ" type="number" min="1" max="50" value="5"></div>
             <div style="flex:1"><label class="lbl">ترتيب المواجهات</label><select class="input" id="tOrder"><option value="grade">حسب الصف (10/1 ضد 10/2…)</option><option value="random">قرعة عشوائية</option></select></div></div>
+            <p id="independentNote" class="muted" style="display:none;margin:0">سيجيب كل فصل عن جميع أسئلته في وقت منفصل. يحصل الطالب على 0 إلى 5 نقاط عن كل سؤال حسب صحة الإجابة وسرعتها، وتُرتب النتائج حسب متوسط النقاط لكل سؤال.</p>
             <div><div class="row" style="justify-content:space-between"><label class="lbl">الفصول المشاركة</label><button class="btn sm ghost" data-checkall>تحديد الكل</button></div>
               ${Object.keys(byGrade).sort((a, b) => a - b).map((g) => `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b class="muted" style="font-size:.85rem">${GRADES[g] || 'الصف ' + g}</b><button class="btn sm ghost" data-checkgrade="${g}">الكل</button></div>
               <div class="checks">${byGrade[g].map((c) => `<label><input type="checkbox" class="tc" data-grade="${g}" value="${c.id}"> ${esc(c.name)} <small class="muted">(${c.questions.length})</small></label>`).join('')}</div></div>`).join('') || '<div class="empty">أنشئ فصولاً أولاً</div>'}
             </div>
-            <p class="muted" style="font-size:.85rem;margin:0">نظام خروج المغلوب: كل فصلين يتواجهان والفائز يتأهل للجولة التالية حتى يبقى بطل واحد. إذا كان العدد فردياً يتأهل بعض الفصول مباشرة.</p>
-            <button class="btn pri lg" data-createt>${icons.sitemap} إنشاء الدوري</button>
+            <p class="muted" id="leagueNote" style="font-size:.85rem;margin:0">نظام خروج المغلوب: كل فصلين يتواجهان والفائز يتأهل للجولة التالية حتى يبقى بطل واحد. إذا كان العدد فردياً يتأهل بعض الفصول مباشرة.</p>
+            <button class="btn pri lg" data-createt>${icons.sitemap} إنشاء المسابقة</button>
           </div></div>
       </div>`;
   }
@@ -273,7 +305,7 @@
     const kpi = (v, l, ic) => `<div class="card kpi"><span>${ic} ${l}</span><b>${fmt(v)}</b></div>`;
     return head('الإحصائيات', `<button class="btn sm" data-csv>${icons.copy} تصدير ترتيب الطلاب (CSV)</button>`) + `
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px">
-        ${kpi(T.classes, 'الفصول', icons.book)}${kpi(T.questions, 'الأسئلة', icons.edit)}${kpi(T.matches, 'مباريات منتهية', icons.sitemap)}${kpi(T.players, 'طلاب شاركوا', icons.users)}${kpi(T.online, 'متصل الآن', icons.bolt)}
+        ${kpi(T.classes, 'الفصول', icons.book)}${kpi(T.questions, 'الأسئلة', icons.edit)}${kpi(T.matches, 'مسابقات منتهية', icons.sitemap)}${kpi(T.players, 'طلاب شاركوا', icons.users)}${kpi(T.online, 'متصل الآن', icons.bolt)}
       </div>
       <div class="cols">
         <div class="card"><div class="sec-title">${icons.chart} ترتيب الفصول</div>
@@ -288,9 +320,9 @@
         <table class="table"><thead><tr><th>#</th><th>الطالب</th><th>الفصل</th><th>المباريات</th><th>صحيحة</th><th>الدقة</th><th>النقاط</th></tr></thead><tbody>
         ${s.top.map((p, i) => `<tr><td><span class="rank ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span></td><td><b>${esc(p.name)}</b></td><td>${esc(p.className)}</td><td>${p.matches}</td><td>${p.correct}/${p.questions}</td><td>${p.accuracy}%</td><td><b>${fmt(p.score)}</b></td></tr>`).join('') || '<tr><td colspan="7" class="muted">لا توجد بيانات</td></tr>'}
         </tbody></table></div>
-      <div class="card" style="margin-top:20px"><div class="sec-title">${icons.sitemap} سجل المباريات</div>
+      <div class="card" style="margin-top:20px"><div class="sec-title">${icons.sitemap} سجل المسابقات</div>
         <table class="table"><thead><tr><th>التاريخ</th><th>الدوري</th><th>الجولة</th><th>المباراة</th><th>النتيجة</th><th>الفائز</th></tr></thead><tbody>
-        ${data.history.map((h) => `<tr><td class="muted">${new Date(h.date).toLocaleString('ar', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(h.tournament)}</td><td>${esc(h.roundName)}</td><td><b>${esc(h.teams[0])}</b> ضد <b>${esc(h.teams[1])}</b></td><td>${fmt(h.scores[0])} - ${fmt(h.scores[1])}</td><td>${h.winner ? `<span class="badge ok">${esc(h.winner)}</span>` : '<span class="badge warn">تعادل</span>'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">لا توجد مباريات بعد</td></tr>'}
+        ${data.history.map((h) => `<tr><td class="muted">${new Date(h.date).toLocaleString('ar', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(h.tournament)}</td><td>${esc(h.roundName)}</td><td>${h.type === 'independent' ? `<b>${esc(h.teams[0])}</b>` : `<b>${esc(h.teams[0])}</b> ضد <b>${esc(h.teams[1])}</b>`}</td><td>${h.type === 'independent' ? `${fmt(h.scores[0])} / 5` : `${fmt(h.scores[0])} - ${fmt(h.scores[1])}`}</td><td>${h.type === 'independent' ? '<span class="badge">نتيجة محفوظة</span>' : h.winner ? `<span class="badge ok">${esc(h.winner)}</span>` : '<span class="badge warn">تعادل</span>'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">لا توجد مباريات بعد</td></tr>'}
         </tbody></table></div>`;
   }
 
@@ -311,6 +343,13 @@
   // ------------------------------------------------------------ events
   function onInput(e) {
     const el = e.target;
+    if (el.id === 'tType') {
+      const independent = el.value === 'independent';
+      $('#leagueOptions').style.display = independent ? 'none' : 'flex';
+      $('#independentNote').style.display = independent ? '' : 'none';
+      $('#leagueNote').style.display = independent ? 'none' : '';
+      return;
+    }
     if (!editor || el.dataset.q == null) return;
     const q = editor.questions[+el.dataset.q];
     if (el.dataset.f === 'wrong') q.wrong[+el.dataset.j] = el.value;
@@ -327,13 +366,18 @@
     if (d.view) return act('display:view', { view: d.view });
     if (d.open) return act('match:open', { tournamentId: tid, matchId: d.open }).then((r) => { if (r.ok && tab !== 'live') { tab = 'live'; renderNav(); renderTab(); } });
     if (d.openm) return act('match:open', { tournamentId: st.tournament.id, matchId: d.openm });
+    if (d.openClass) return act('classCompetition:open', { tournamentId: tid, classId: d.openClass }).then((r) => { if (r.ok && tab !== 'live') { tab = 'live'; renderNav(); renderTab(); } });
+    if (d.resetClass) {
+      if (confirm('إعادة تعيين نتيجة هذا الفصل؟ ستتمكن من فتح المسابقة له مرة أخرى.')) return act('classCompetition:reset', { tournamentId: tid, classId: d.resetClass }, 'تمت إعادة تعيين النتيجة');
+      return;
+    }
     if (d.win) { if (confirm('تأهيل هذا الفصل يدوياً؟')) act('match:setWinner', { tournamentId: tid, matchId: d.win, winner: d.team }, 'تم التأهيل'); return; }
     if (d.reset) { if (confirm('إعادة تعيين هذه المباراة؟ ستُلغى نتيجتها ونتائج الجولات التي تليها.')) act('match:reset', { tournamentId: tid, matchId: d.reset }); return; }
-    if ('start' in d) return act('match:start');
-    if ('reveal' in d) return act('match:reveal');
-    if ('next' in d) return act('match:next');
-    if ('cancel' in d) { if (confirm('إلغاء المباراة الحالية بدون حفظ النتيجة؟')) act('match:cancel'); return; }
-    if ('close' in d) return act('match:close');
+    if ('start' in d) return act('match:start', { classId: d.classId });
+    if ('reveal' in d) return act('match:reveal', { classId: d.classId });
+    if ('next' in d) return act('match:next', { classId: d.classId });
+    if ('cancel' in d) { if (confirm('إلغاء المسابقة الحالية بدون حفظ النتيجة؟')) act('match:cancel', { classId: d.classId }); return; }
+    if ('close' in d) return act('match:close', { classId: d.classId });
     if (d.tiewin) return act('match:setWinner', { tournamentId: st.match.tournamentId, matchId: st.match.id, winner: d.tiewin }, 'تم التأهيل');
 
     if ('addclass' in d) return act('class:create', { grade: $('#cGrade').value, section: $('#cSection').value }, 'تمت إضافة الفصل');
@@ -371,7 +415,8 @@
     if (d.checkgrade) { const all = $$(`.tc[data-grade="${d.checkgrade}"]`); const v = all.some((x) => !x.checked); all.forEach((x) => (x.checked = v)); return; }
     if ('createt' in d) {
       const classIds = $$('.tc:checked').map((x) => x.value);
-      const r = await act('tournament:create', { name: $('#tName').value, questionsPerMatch: $('#tQ').value, order: $('#tOrder').value, classIds }, 'تم إنشاء الدوري');
+      const type = $('#tType').value;
+      const r = await act('tournament:create', { type, name: $('#tName').value, questionsPerMatch: $('#tQ').value, order: $('#tOrder').value, classIds }, type === 'independent' ? 'تم إنشاء المسابقات المنفصلة' : 'تم إنشاء الدوري');
       if (r.ok) selT = r.id;
       return;
     }
