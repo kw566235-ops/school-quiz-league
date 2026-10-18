@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>عن برنامج ضفاف العربية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .about-wrap{width:min(100% - 32px,1000px);margin:0 auto;padding:34px 0 64px}
+  .about-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:44px}
+  .about-hero{text-align:center;padding:clamp(36px,8vw,88px) 22px;margin-bottom:28px;background:linear-gradient(145deg,rgba(124,92,255,.16),rgba(34,211,238,.08));border:1px solid var(--line);border-radius:28px}
+  .about-hero .eyebrow{display:inline-flex;margin-bottom:14px}
+  .about-hero h1{font-size:clamp(2.2rem,6vw,4.5rem);font-weight:900}
+  .about-hero p{max-width:760px;margin:18px auto 0;font-size:clamp(1rem,2.2vw,1.2rem);line-height:2}
+  .about-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .about-card{padding:clamp(20px,4vw,32px)}
+  .about-card h2{display:flex;align-items:center;gap:10px;font-size:1.35rem;margin-bottom:18px}
+  .about-card h2 .ico{width:27px;height:27px;color:var(--pri2)}
+  .aim-list{list-style:none;padding:0;margin:0;counter-reset:aim;display:grid;gap:12px}
+  .aim-list li{counter-increment:aim;display:flex;align-items:flex-start;gap:12px;line-height:1.9}
+  .aim-list li::before{content:counter(aim);display:grid;place-items:center;flex:0 0 30px;height:30px;border-radius:10px;background:rgba(124,92,255,.2);color:#c4b5fd;font-weight:800}
+  .contest-list{display:flex;flex-wrap:wrap;gap:10px}
+  .contest-list .badge{padding:8px 13px;font-size:.9rem}
+  .audience{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:20px 24px}
+  .audience .ico{width:32px;height:32px;color:#67e8f9}
+  .audience p{margin:4px 0 0;line-height:1.8}
+  @media(max-width:700px){.about-wrap{padding-top:22px}.about-head{margin-bottom:24px}.about-grid{grid-template-columns:1fr}.audience{grid-column:auto}}
+</style>
+</head>
+<body>
+<main class="about-wrap">
+  <header class="about-head">
+    <a href="/" aria-label="العودة للرئيسية"><div id="logo"></div></a>
+    <a class="btn sm" href="/">العودة للرئيسية</a>
+  </header>
+  <section class="about-hero">
+    <span class="badge ok eyebrow">برنامج تعليمي وثقافي</span>
+    <h1>برنامج <span class="grad-text">ضفاف العربية</span></h1>
+    <p class="muted">برنامج تعليمي وثقافي يقدّم مسابقات في فروع اللغة العربية؛ لإبراز مكانتها في البيئة المدرسية، وترسيخ الاعتزاز بها لغةً للهوية والثقافة والحضارة. ويقوم على سلسلة من المسابقات التخصصية التي تغطي علوم اللغة ومهاراتها.</p>
+  </section>
+  <div class="about-grid">
+    <section class="card about-card">
+      <h2><span id="aimIcon"></span>أهداف البرنامج</h2>
+      <ol class="aim-list">
+        <li>تعزيز الاعتزاز باللغة العربية وترسيخ مكانتها.</li>
+        <li>تنمية الملكة اللغوية لدى الطلبة في مختلف فروع اللغة.</li>
+        <li>اكتشاف المواهب اللغوية والأدبية ورعايتها وإبراز المتميزين.</li>
+        <li>تنويع أساليب تعلّم اللغة وتقويمها عبر مسابقات تفاعلية تجمع بين المعرفة والمتعة والتحدي.</li>
+      </ol>
+    </section>
+    <section class="card about-card">
+      <h2><span id="contestIcon"></span>مسابقات على مدار العام</h2>
+      <p class="muted" style="line-height:1.9;margin:0 0 16px">يطرح البرنامج مسابقات تخصصية متنوعة خلال العام الدراسي، في مجالات اللغة العربية، ومنها:</p>
+      <div class="contest-list">
+        <span class="badge">النحو والصرف</span>
+        <span class="badge">البلاغة</span>
+        <span class="badge">الأدب</span>
+        <span class="badge">الإملاء</span>
+        <span class="badge">القراءة</span>
+        <span class="badge">علوم اللغة ومهاراتها</span>
+      </div>
+    </section>
+    <section class="card audience">
+      <span id="audienceIcon"></span>
+      <div><b>الفئة المستهدفة</b><p class="muted">طلبة الصفوف من التاسع إلى الثاني عشر في المدرسة.</p></div>
+    </section>
+  </div>
+</main>
+<script src="/js/socket.io.min.js"></script>
+<script src="/js/common.js"></script>
+<script>
+  const { icons, logo, $ } = App;
+  $('#logo').innerHTML = logo;
+  $('#aimIcon').innerHTML = icons.star;
+  $('#contestIcon').innerHTML = icons.book;
+  $('#audienceIcon').innerHTML = icons.users;
+</script>
+</body>
+</html>
