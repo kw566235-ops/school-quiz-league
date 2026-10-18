@@ -1318,7 +1318,7 @@ async def api_qr(u: str = ""):
     return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
-for _page in ("play", "admin", "display", "index"):
+for _page in ("play", "admin", "display", "index", "about"):
     def _mk(page):
         async def serve():
             return FileResponse(PUBLIC / f"{page}.html", headers={"Cache-Control": "no-cache"})
