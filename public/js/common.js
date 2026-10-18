@@ -41,7 +41,7 @@ window.App = (() => {
     '<svg viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>',
     '<svg viewBox="0 0 24 24"><path d="M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z"/></svg>',
   ];
-  const logo = `<div class="logo"><div class="mark">${icons.trophy}</div><span>دوري المسابقات</span></div>`;
+  const logo = `<div class="logo" aria-label="ضفاف العربية"><div class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 7.5c4-1.1 7.3-.2 10.5 2.5v13c-3.2-2.7-6.5-3.6-10.5-2.5z"/><path d="M26.5 7.5C22.5 6.4 19.2 7.3 16 10v13c3.2-2.7 6.5-3.6 10.5-2.5z"/><path d="M7.5 16.5c2.3-.3 4.2.2 6 1.5M24.5 16.5c-2.3-.3-4.2.2-6 1.5"/><path d="M4 26c3.5-1.7 7-1.7 10.5 0 3.5-1.7 7-1.7 10.5 0"/></svg></div><span>ضفاف العربية</span></div>`;
 
   function toast(msg, type = 'info') {
     let box = $('#toasts');
