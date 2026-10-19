@@ -31,16 +31,13 @@
   .opening-start:hover{background:#7c5cff}
   .opening[hidden]{display:none}
   .opening-panel[hidden]{display:none}
-  .opening-panel h2{font-size:clamp(1.8rem,5vw,3rem);font-weight:900;margin-bottom:12px}
-  .opening-intro{margin:0 auto 24px;max-width:650px;line-height:1.9}
-  .opening-goals{display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:right;margin:24px 0}
-  .opening-goal{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:15px;background:rgba(255,255,255,.045);line-height:1.75}
-  .opening-goal b{display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:9px;background:rgba(124,92,255,.24);color:#ddd6fe}
+  .opening-panel h2{font-size:clamp(2.2rem,6vw,4rem);font-weight:900;margin:14px 0}
+  .opening-intro{margin:0 auto 24px;max-width:650px;font-size:clamp(1rem,2.5vw,1.3rem);line-height:2}
   .opening-hint{margin:16px 0 0;font-size:.9rem}
   .opening[ data-celebrate="true"]::before,.opening[ data-celebrate="true"]::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,#67e8f9 0 3px,transparent 4px),radial-gradient(circle,#c4b5fd 0 3px,transparent 4px),radial-gradient(circle,#fbbf24 0 3px,transparent 4px),radial-gradient(circle,#fb7185 0 3px,transparent 4px);background-size:140px 150px,180px 190px,220px 170px,260px 210px;background-position:8% -100%,34% -130%,69% -150%,92% -110%;background-repeat:no-repeat;animation:opening-sparkle 1.4s ease-out both}
   .opening[ data-celebrate="true"]::after{transform:translateY(-18px);opacity:.7;animation-delay:.12s}
   @keyframes opening-sparkle{to{background-position:8% 110%,34% 120%,69% 115%,92% 110%;opacity:0}}
-  @media(max-width:600px){.opening-goals{grid-template-columns:1fr}.opening-card{padding:26px 20px}}
+  @media(max-width:600px){.opening-card{padding:26px 20px}}
   @media(prefers-reduced-motion:reduce){.opening,.opening-start,.opening[ data-celebrate="true"]::before,.opening[ data-celebrate="true"]::after{transition:none;animation:none}}
 </style>
 </head>
@@ -53,15 +50,9 @@
       <button class="btn pri opening-start" id="openingStart" aria-controls="openingGoals" aria-expanded="false">افتح الموقع</button>
     </section>
     <section class="opening-panel" id="openingGoals" aria-labelledby="openingTitle" hidden>
-      <span class="badge ok">أهلاً بكم</span>
-      <h2 id="openingTitle">أهداف البرنامج</h2>
-      <p class="muted opening-intro">معًا نكتشف جمال العربية وننمي مهاراتها.</p>
-      <div class="opening-goals">
-        <div class="opening-goal"><b>١</b><span>تعزيز الاعتزاز باللغة العربية وترسيخ مكانتها.</span></div>
-        <div class="opening-goal"><b>٢</b><span>تنمية الملكة اللغوية لدى الطلبة في مختلف فروع اللغة.</span></div>
-        <div class="opening-goal"><b>٣</b><span>اكتشاف المواهب اللغوية والأدبية ورعايتها وإبراز المتميزين.</span></div>
-        <div class="opening-goal"><b>٤</b><span>تنويع أساليب التعلم بمسابقات تجمع المعرفة والمتعة والتحدي.</span></div>
-      </div>
+      <span class="badge ok">برنامج ضفاف العربية</span>
+      <h2 id="openingTitle">أهلاً بكم</h2>
+      <p class="muted opening-intro">يسرّنا حضوركم ومشاركتكم في برنامج ضفاف العربية. نلتقي اليوم لنحتفي بلغتنا الجميلة، ونكتشف معًا ما تزخر به من معرفة وإبداع. نتمنى لكم وقتًا ممتعًا وتجربة ملهمة.</p>
       <button class="btn pri opening-start" id="openingContinue" aria-controls="siteContent">المتابعة إلى الموقع <span aria-hidden="true">↵</span></button>
       <p class="muted opening-hint">أو اضغط مفتاح Enter للمتابعة</p>
     </section>
@@ -83,10 +74,10 @@
   const { icons, logo, $ } = App;
   $('#logo').innerHTML = logo;
   const portals = [
+    ['/about', 'عن البرنامج', 'نبذة عن ضفاف العربية وأهدافه ومجالات المسابقات على مدار العام.', icons.book, 'linear-gradient(135deg,#14b8a6,#22d3ee)'],
     ['/play', 'دخول الطالب', 'انضم من جهازك باسمك وفصلك، وجاوب على الأسئلة لحظة بلحظة.', icons.users, 'linear-gradient(135deg,#3b82f6,#22d3ee)'],
     ['/display', 'شاشة العرض', 'للبروجكتر: الأسئلة، المراكز، الإحصائيات وشجرة الدوري مباشرة.', icons.monitor, 'linear-gradient(135deg,#f97316,#fbbf24)'],
     ['/admin', 'لوحة الأدمن', 'إنشاء الفصول والأسئلة، إدارة الدوري، وبدء المسابقة.', icons.shield, 'linear-gradient(135deg,#7c5cff,#c026d3)'],
-    ['/about', 'عن البرنامج', 'نبذة عن ضفاف العربية وأهدافه ومجالات المسابقات على مدار العام.', icons.book, 'linear-gradient(135deg,#14b8a6,#22d3ee)'],
   ];
   $('#portals').innerHTML = portals.map(([href, t, d, ic, bg]) => `
     <a class="card portal" href="${href}"><div class="pi" style="background:${bg}">${ic}</div><h3>${t}</h3><p class="muted" style="margin:0">${d}</p><span class="go">ادخل ←</span></a>`).join('');
