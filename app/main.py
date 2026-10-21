@@ -1211,6 +1211,7 @@ async def player_leave(sid, d=None):
         del live["pstats"][p["id"]]
     players.pop(p["id"], None)
     s["playerId"] = None
+    push_admin_data()
     broadcast()
 
 
@@ -1220,6 +1221,7 @@ async def disconnect(sid, *args):
     p = players.get(s.get("playerId"))
     if p and p.get("sid") == sid:
         p["connected"] = False
+        push_admin_data()
         broadcast()
 
 
