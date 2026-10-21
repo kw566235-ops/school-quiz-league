@@ -44,6 +44,12 @@
     if (key === lastKey) return;
     lastKey = key;
     const runningClassGames = (st.classGames || []).filter((game) => game.phase !== 'idle');
+    const activeClassGames = runningClassGames.filter((game) => game.phase !== 'finished');
+    const completedClasses = (st.tournament?.classes || []).filter((item) => item.result);
+    if (st.tournament?.type === 'independent' && completedClasses.length && !activeClassGames.length) {
+      stage.innerHTML = classResults(completedClasses);
+      return;
+    }
     if (st.view === 'auto' && runningClassGames.length) {
       stage.innerHTML = concurrentGames(runningClassGames);
       return;
@@ -51,6 +57,13 @@
     const mode = st.view !== 'auto' ? st.view : st.phase === 'idle' ? 'bracket' : st.phase;
     const views = { bracket, leaderboard, standings, lobby, countdown, question: questionView, reveal: questionView, finished };
     stage.innerHTML = (views[mode] || bracket)();
+  }
+
+  function classResults(classes) {
+    return `<div class="card fade-in" style="flex:1;overflow:auto"><div class="sectitle">${icons.trophy} ترتيب نتائج الفصول</div>
+      <table class="table"><thead><tr><th>#</th><th>الفصل</th><th>النقاط لكل سؤال</th><th>الدقة</th><th>الإجابات الصحيحة</th><th>متوسط زمن الإنهاء</th></tr></thead><tbody>
+      ${classes.map(({ class: c, result }, i) => `<tr><td><span class="rank ${i < 3 ? `r${i + 1}` : ''}">${i + 1}</span></td><td><b>${esc(c.name)}</b></td><td>${fmt(result.avg)} / 5</td><td>${result.accuracy}%</td><td>${result.correct}/${result.qCount}</td><td>${result.avgFinishMs == null ? '—' : `${fmt(result.avgFinishMs / 1000)} ثانية`}</td></tr>`).join('')}
+      </tbody></table></div>`;
   }
 
   function concurrentGames(games) {
