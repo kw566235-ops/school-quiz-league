@@ -143,8 +143,8 @@ label.lbl{display:block;font-size:.85rem;color:var(--muted);margin:0 0 6px;font-
 @keyframes fin{from{opacity:0;transform:translateY(12px)}}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:9998}
 .logo{display:flex;align-items:center;gap:10px;font-weight:900;font-size:1.15rem}
-.logo .mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--pri),var(--pri2));box-shadow:0 6px 20px rgba(124,92,255,.5)}
-.logo .mark svg{width:27px;height:27px;color:#fff}
+.logo .mark{width:44px;height:44px;flex:0 0 44px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#f6f4e8;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.logo .mark img{display:block;width:100%;height:100%;object-fit:cover}
 .kpi{display:flex;flex-direction:column;gap:4px}
 .kpi b{font-size:2rem;font-weight:900}
 .kpi span{color:var(--muted);font-size:.85rem;font-weight:600}
