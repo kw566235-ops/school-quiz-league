@@ -5,7 +5,7 @@
 
   $('#fs').innerHTML = icons.expand;
   $('#fs').onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
-  $('#openingLogo').innerHTML = icons.trophy;
+  $('#openingLogo').innerHTML = '<img src="/images/logo.png" alt="شعار ضفاف العربية">';
   $('#openingStart').onclick = startOpening;
   joinUrl().then((u) => { url = u; lastHead = ''; renderHead(); });
 
